@@ -1,0 +1,7 @@
+node_modules/
+dist/
+.vite/
+# Client ID do Spotify (cada pessoa usa o seu)
+.env.local
+# Certificados locais do HTTPS (mkcert)
+certs/
