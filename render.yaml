@@ -1,0 +1,15 @@
+# Configuração do Render (render.com) para publicar o EchoTrack.
+# Em "New > Blueprint", o Render lê este arquivo e cria o serviço.
+services:
+  - type: web
+    name: echotrack
+    runtime: docker
+    plan: free
+    healthCheckPath: /api/health
+    envVars:
+      # Client ID do app no painel do Spotify (developer.spotify.com/dashboard)
+      - key: SPOTIFY_CLIENT_ID
+        sync: false
+      # Endereço do banco Postgres (ex.: Neon), para as contas não sumirem
+      - key: DATABASE_URL
+        sync: false
