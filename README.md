@@ -50,6 +50,39 @@ Compara a música escolhida com as demais músicas do dataset e retorna as mais 
 
 Busca equilibrar relevância e diversidade, evitando recomendações excessivamente repetitivas.
 
+### 6. EchoTrack: a aplicação
+
+Interface web (React) e API (FastAPI) sobre o mesmo modelo. A recomendação é sempre
+baseada no conteúdo (o som de cada faixa), e a interface mostra de onde cada
+recomendação veio e por quê.
+
+- **Explicação de cada recomendação:** afinidade (similaridade do cosseno), as 3
+  características que mais aproximam a faixa da música de partida e se ela entrou
+  por ser muito parecida ou "para variar" (escolha do MMR).
+- **Rádio dirigível:** controles que puxam a playlist para mais (ou menos) energia,
+  acústica e alegria, e um controle "parecido ↔ variado" que ajusta o λ do MMR.
+  Cada controle desloca o vetor de partida em até 1,5 desvio-padrão na característica
+  escolhida; o modelo não é retreinado.
+- **Ponte entre duas músicas:** paradas ao longo da reta entre os vetores das duas
+  músicas; em cada parada entra a faixa mais próxima, dentro dos estilos das duas pontas.
+- **Fora da bolha:** dentro das músicas de som mais próximo, as menos populares
+  sobem no ranking (o contrário do viés de popularidade).
+- **Feito para você:** recomendações a partir do questionário, cada uma dizendo de
+  qual gosto do perfil ela veio.
+
+Principais rotas da API:
+
+| Rota | O que faz |
+| --- | --- |
+| `GET /api/recommend/{track_id}` | Playlist a partir de uma música. Parâmetros: `n`, `lam`, `energy`, `acousticness`, `valence` (-1 a 1) e `obscure` |
+| `GET /api/recommend/genre/{genre}` | Playlist pelo som médio de um gênero (`lam`, `obscure`) |
+| `GET /api/bridge?from=&to=&n=` | Ponte entre duas músicas (`obscure`) |
+| `GET /api/search?q=` | Busca por título e artista |
+| `GET /api/artist?name=` | Músicas do artista e artistas de som parecido |
+| `GET /api/me/for-you` | Recomendações do perfil (precisa de login) |
+
+Cada resposta de recomendação traz `elapsed_ms`, o tempo que o modelo levou.
+
 ## Estrutura do projeto
 
 ```text
@@ -147,13 +180,37 @@ Depois, serão exibidas as recomendações geradas pelos dois métodos:
 
 Os resultados também são salvos em arquivos CSV na pasta `data/`.
 
+## Publicação na internet
+
+O site e a API são publicados juntos em um único serviço (Docker). O `Dockerfile` compila o front-end, treina o modelo a partir de `data/dataset.csv` e sobe a API, que também entrega as páginas do site.
+
+### Banco de dados
+
+No computador, as contas ficam em um arquivo SQLite (`instance/`). Na nuvem o disco é apagado a cada nova versão, então as contas ficam em um PostgreSQL, informado pela variável `DATABASE_URL`. O plano gratuito do [Neon](https://neon.tech) atende ao projeto.
+
+### Render
+
+1. Envie a branch para o GitHub.
+2. No [Render](https://render.com), crie um **Blueprint** apontando para o repositório (ele lê o `render.yaml`), ou um **Web Service** com *Runtime: Docker* e plano *Free*.
+3. Preencha as variáveis de ambiente:
+   - `DATABASE_URL`: URL de conexão do PostgreSQL;
+   - `SPOTIFY_CLIENT_ID`: Client ID do app no painel de desenvolvedor do Spotify.
+4. No painel do Spotify, adicione em *Redirect URIs* o endereço do site seguido de `/callback`, por exemplo `https://echotrack.onrender.com/callback`.
+
+No plano gratuito o serviço "dorme" depois de 15 minutos sem acesso, e o primeiro acesso seguinte leva cerca de um minuto.
+
+### Domínio próprio
+
+1. Registre o domínio (para `.com.br`, no [Registro.br](https://registro.br)).
+2. No Render, em *Settings → Custom Domains*, adicione `www.echotrack.com.br`.
+3. No DNS do domínio, crie um registro **CNAME** de `www` apontando para o endereço `.onrender.com` do serviço. O Render emite o certificado HTTPS automaticamente.
+4. Adicione `https://www.echotrack.com.br/callback` nos *Redirect URIs* do Spotify.
+
 ## Próximas etapas
 
 - Validar e comparar os resultados dos algoritmos.
 - Avaliar a diversidade e a qualidade das recomendações.
-- Desenvolver uma API utilizando FastAPI.
-- Criar uma interface utilizando React.
-- Integrar o sistema à API do Spotify, se necessário.
+- Usar as respostas dos usuários cadastrados para calibrar o perfil musical.
 
 ## Objetivo
 
