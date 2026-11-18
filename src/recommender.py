@@ -311,3 +311,210 @@ def recommend_songs_mmr(
     ]
 
     return result[available_cols].reset_index(drop=True)
+
+
+# ======================================================================
+# Recomendação por índice ou por vetor (usada pela API)
+# ======================================================================
+
+def _is_same_song(title_a, artists_a, title_b, artists_b):
+    """Duas faixas são a mesma música quando têm o mesmo título
+    normalizado e pelo menos um artista em comum (ex.: versão ao vivo
+    ou remasterizada já removida pela normalização, outro álbum)."""
+    return title_a == title_b and bool(artists_a & artists_b)
+
+
+def _unique_candidates(order, titles, artist_sets, size, seed=None):
+    """Percorre o ranking e descarta outras versões da música de partida
+    e versões repetidas entre si, até juntar `size` candidatos."""
+    kept = []
+    seen = []
+    for i in order:
+        if seed is not None and (
+            i == seed
+            or _is_same_song(titles[i], artist_sets[i], titles[seed], artist_sets[seed])
+        ):
+            continue
+        if any(_is_same_song(titles[i], artist_sets[i], t, a) for t, a in seen):
+            continue
+        kept.append(i)
+        seen.append((titles[i], artist_sets[i]))
+        if len(kept) == size:
+            break
+    return np.array(kept)
+
+
+_XN_CACHE = {}
+
+
+def recommend_from_vector(
+    vector,
+    df,
+    X,
+    titles,
+    artist_sets,
+    n=10,
+    method="mmr",
+    seed_index=None,
+    lam=0.75,
+    pool_size=100,
+    popularity=None,
+    obscurity=0.0,
+):
+    """Recomenda a partir de um vetor qualquer: o vetor de uma música
+    (seed_index informado), o perfil médio de um gênero ou um vetor
+    "dirigido". Usa o núcleo rápido (matriz normalizada guardada)."""
+    key = id(X)
+    if key not in _XN_CACHE:
+        _XN_CACHE.clear()
+        _XN_CACHE[key] = normalize_rows(X)
+    selected, sims, roles = fast_recommend(
+        vector, _XN_CACHE[key], titles, artist_sets,
+        n=n, method=method, seed_index=seed_index, lam=lam,
+        pool_size=pool_size, popularity=popularity, obscurity=obscurity,
+    )
+    result = df.iloc[selected].copy()
+    result["similarity"] = sims
+    result["pick"] = roles
+    return result.reset_index(drop=True)
+
+
+def base_title(text):
+    """Título sem marcações de versão, para reconhecer a mesma música:
+    "High Hopes - Live" e "High Hopes (2011 Remaster)" viram "high hopes"."""
+    text = str(text).split(" - ")[0]
+    text = re.sub(r"\([^)]*\)|\[[^\]]*\]", " ", text)
+    return normalize_text(text)
+
+
+# ---------------------------------------------------------------------------
+# Núcleo rápido (usado pela API)
+# ---------------------------------------------------------------------------
+# A matriz de características já chega normalizada (cada linha com norma 1),
+# então a similaridade do cosseno vira um único produto de matrizes. Isso
+# evita normalizar as 89 mil músicas a cada pedido. O modelo é o mesmo.
+
+
+def normalize_rows(X):
+    """Normaliza cada linha para norma 1 (float32, para o produto ficar rápido)."""
+    X = np.asarray(X, dtype=np.float32)
+    norms = np.linalg.norm(X, axis=1, keepdims=True)
+    return X / np.clip(norms, 1e-9, None)
+
+
+def _unit(vector):
+    v = np.asarray(vector, dtype=np.float32)
+    return v / max(float(np.linalg.norm(v)), 1e-9)
+
+
+def mmr_select(Xn, candidates, relevance, n, lam):
+    """MMR vetorizado: a cada passo escolhe o que equilibra relevância e
+    diferença em relação aos já escolhidos (λ = peso da relevância)."""
+    if len(candidates) == 0:
+        return np.array([], dtype=int)
+    pair = Xn[candidates] @ Xn[candidates].T
+    chosen = [int(np.argmax(relevance))]
+    max_sim = pair[chosen[0]].copy()
+    available = np.ones(len(candidates), dtype=bool)
+    available[chosen[0]] = False
+    while len(chosen) < min(n, len(candidates)):
+        score = lam * relevance - (1 - lam) * max_sim
+        score[~available] = -np.inf
+        best = int(np.argmax(score))
+        chosen.append(best)
+        available[best] = False
+        np.maximum(max_sim, pair[best], out=max_sim)
+    return np.asarray(chosen)
+
+
+def fast_recommend(
+    vector,
+    Xn,
+    titles,
+    artist_sets,
+    n=10,
+    method="mmr",
+    seed_index=None,
+    lam=0.75,
+    pool_size=100,
+    popularity=None,
+    obscurity=0.0,
+):
+    """Recomenda a partir de um vetor (música, gênero, perfil ou vetor
+    "dirigido"). Devolve índices, similaridade real e o papel no MMR.
+
+    obscurity > 0 ativa o modo "fora da bolha": dentro das músicas de som
+    mais próximo, as menos populares sobem no ranking.
+    """
+    sims = Xn @ _unit(vector)
+
+    # Folga de candidatos para compensar versões repetidas descartadas.
+    wide = pool_size * (12 if obscurity > 0 else 3)
+    order = np.argpartition(-sims, wide)[:wide]
+
+    score = sims[order]
+    if obscurity > 0 and popularity is not None:
+        score = score - obscurity * popularity[order]
+    order = order[np.argsort(-score)]
+
+    size = n if method == "baseline" else max(pool_size, n)
+    candidates = _unique_candidates(order, titles, artist_sets, size, seed_index)
+    if len(candidates) == 0:
+        return np.array([], dtype=int), np.array([]), []
+
+    relevance = sims[candidates]
+    if obscurity > 0 and popularity is not None:
+        relevance = relevance - obscurity * popularity[candidates]
+
+    if method == "baseline":
+        picked = np.arange(min(n, len(candidates)))
+    else:
+        picked = mmr_select(Xn, candidates, relevance, n, lam)
+
+    selected = candidates[picked]
+    roles = ["similar" if p < n else "diverse" for p in picked]
+    return selected, sims[selected], roles
+
+
+def bridge_path(Xn, start, end, titles, artist_sets, n=12, popularity=None, obscurity=0.0, allowed=None):
+    """Ponte entre duas músicas: n paradas ao longo da linha reta entre os
+    dois vetores. Em cada ponto do caminho entra a música mais próxima que
+    ainda não está na lista (sem repetir artista em sequência).
+    `allowed` limita a busca (ex.: aos estilos das duas pontas), o que
+    também deixa o cálculo bem mais rápido."""
+    a, b = Xn[start], Xn[end]
+    steps = np.linspace(0.0, 1.0, n)[1:-1]
+    targets = np.stack([(1 - t) * a + t * b for t in steps]).astype(np.float32)
+    targets /= np.linalg.norm(targets, axis=1, keepdims=True).clip(1e-9)
+
+    pool = np.flatnonzero(allowed) if allowed is not None else np.arange(len(Xn))
+    sims = targets @ Xn[pool].T  # (paradas x candidatas) num único produto
+    if obscurity > 0 and popularity is not None:
+        sims = sims - obscurity * popularity[pool][None, :]
+
+    k = min(80, sims.shape[1] - 1)
+    used = [start, end]
+    picks = []
+    prev_artists = artist_sets[start]
+    for row in sims:
+        top = np.argpartition(-row, k)[:k]
+        top = pool[top[np.argsort(-row[top])]]
+        pick = None
+        for i in top:
+            if any(_is_same_song(titles[i], artist_sets[i], titles[u], artist_sets[u]) for u in used):
+                continue
+            if artist_sets[i] & prev_artists:
+                continue
+            pick = int(i)
+            break
+        if pick is None:
+            pick = int(top[0])
+        used.append(pick)
+        prev_artists = artist_sets[pick]
+        picks.append(pick)
+
+    # Ordena pelo quanto cada música já "chegou" no destino, para a
+    # transição ser sempre para a frente.
+    progress = [float(Xn[i] @ b - Xn[i] @ a) for i in picks]
+    ordered = [picks[j] for j in np.argsort(progress)]
+    return list(zip(ordered, steps.tolist()))
