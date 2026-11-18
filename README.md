@@ -116,6 +116,22 @@ Os arquivos gerados durante a execução são recriados pelo programa e não pre
 
 ## Como executar o projeto
 
+### Jeito rápido: o site inteiro com um comando (macOS e Linux)
+
+Na pasta principal do projeto:
+
+```bash
+./dev.sh
+```
+
+O script liga a API e o site e abre o navegador em `https://127.0.0.1:5173`. Ctrl+C desliga os dois.
+
+Na primeira vez ele também prepara tudo sozinho: cria o `.venv`, instala as dependências do Python e do site, treina o modelo e gera o certificado HTTPS local. Como o certificado é gerado no próprio computador, o navegador pede uma confirmação na primeira visita (Avançado → Continuar).
+
+Para usar o Spotify Premium dentro do site, coloque o Client ID do seu app em `frontend/.env.local` (o script cria esse arquivo a partir do `frontend/.env.example`). Sem ele, a prévia de 30 segundos continua funcionando.
+
+### Passo a passo: só o recomendador no terminal
+
 ### 1. Clonar o repositório
 
 ```bash
