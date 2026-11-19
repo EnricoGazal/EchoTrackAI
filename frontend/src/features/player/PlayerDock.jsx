@@ -35,7 +35,7 @@ export function PlayerDock({
       {/* Computador */}
       <section
         aria-label="Player"
-        className="fixed inset-x-0 bottom-0 z-40 hidden h-22 items-center gap-6 bg-(--glass-bg) px-4 shadow-3 ring-1 ring-(--glass-ring) backdrop-blur-(--glass-blur) md:left-64 md:flex"
+        className="fixed right-(--rail-gap) bottom-(--rail-gap) left-(--rail-offset) z-40 hidden h-22 items-center gap-6 rounded-xl bg-(--glass-bg) px-4 shadow-3 ring-1 ring-(--glass-ring) backdrop-blur-(--glass-blur) transition-[left] duration-(--duration-base) ease-(--ease-out) md:flex"
       >
         <div className="flex w-[clamp(14rem,24vw,22rem)] min-w-0 items-center gap-3">
           <button type="button" onClick={onExpand} className="shrink-0 rounded-sm" aria-label="Abrir tocando agora">

@@ -4,11 +4,13 @@ import { Toaster, toast } from "sonner";
 import { deleteAccount, getHealth, getMe, getRadio, getToken, logout, prefetchRadio, setToken } from "./api";
 import * as spotify from "./spotify";
 import { useRouter } from "./lib/router";
+import { useRail } from "./lib/rail";
 import { rememberTrack } from "./lib/library";
 import { AppContext } from "./features/shell/context";
 import { BottomNav, MobileTopBar, Sidebar } from "./features/shell/Navigation";
 import { CommandSearch } from "./features/shell/CommandSearch";
 import { UserMenu } from "./features/shell/UserMenu";
+import { Intro, shouldShowIntro } from "./features/shell/Intro";
 import { EmbedEngine, loadSpotifyApi } from "./features/player/EmbedEngine";
 import { SdkEngine } from "./features/player/SdkEngine";
 import { PlayerDock } from "./features/player/PlayerDock";
@@ -28,6 +30,7 @@ import { Confirm } from "./ui/confirm";
 import { Notice } from "./ui/section";
 import { Button } from "./ui/button";
 import { Logo } from "./ui/logo";
+import { TooltipProvider } from "./ui/tooltip";
 
 // Fluxo de entrada: login, questionário e, por fim, o app.
 export default function App() {
@@ -129,6 +132,8 @@ export default function App() {
 
 function MainApp({ user, setUser, onRedo, onSignedOut }) {
   const { route, hint, navigate } = useRouter();
+  const [railOpen, toggleRail] = useRail();
+  const [intro, setIntro] = useState(shouldShowIntro);
 
   // --- Saúde da API -------------------------------------------------------
   const [health, setHealth] = useState({ state: "checking" });
@@ -303,12 +308,13 @@ function MainApp({ user, setUser, onRedo, onSignedOut }) {
     [user, setUser, route, hint, navigate, health, current, paused, playFrom, openSong, openArtist, openGenre, openSearch, pickSong, onRedo]
   );
 
-  const account = (compact) => (
+  const account = (compact, collapsed = false) => (
     <UserMenu
       name={user.name}
       compact={compact}
-      side={compact ? "bottom" : "top"}
-      align={compact ? "end" : "start"}
+      collapsed={collapsed}
+      side={compact ? "bottom" : collapsed ? "right" : "top"}
+      align={compact || collapsed ? "end" : "start"}
       spotify={spotifyStatus}
       onProfile={() => navigate({ name: "profile" })}
       onRedo={onRedo}
@@ -351,60 +357,74 @@ function MainApp({ user, setUser, onRedo, onSignedOut }) {
 
   return (
     <AppContext.Provider value={ctx}>
-      <a href="#conteudo" className="sr-only focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:z-[70] focus:rounded-sm focus:bg-surface-2 focus:px-3 focus:py-2">
-        Pular para o conteúdo
-      </a>
-      <Sidebar active={activeNav} onNavigate={navigate} health={health} account={account(false)} />
-      <MobileTopBar onNavigate={navigate} onSearch={openSearch} account={account(true)} />
+      <TooltipProvider>
+        <a href="#conteudo" className="sr-only focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:z-[70] focus:rounded-sm focus:bg-surface-2 focus:px-3 focus:py-2">
+          Pular para o conteúdo
+        </a>
+        <Sidebar
+          active={activeNav}
+          onNavigate={navigate}
+          health={health}
+          account={account(false, !railOpen)}
+          open={railOpen}
+          onToggle={toggleRail}
+        />
+        <MobileTopBar onNavigate={navigate} onSearch={openSearch} account={account(true)} />
 
-      <main id="conteudo" className={`min-h-dvh md:pl-64 ${current ? "pb-44 md:pb-32" : "pb-24 md:pb-12"}`}>
-        {health.state === "offline" && (
-          <div className="mx-auto max-w-6xl px-4 pt-6 sm:px-8">
-            <Notice tone="danger" title="Sem conexão com o modelo" action={<Button onClick={checkHealth}>Tentar de novo</Button>}>
-              A API parou de responder. Confira o terminal do uvicorn.
-            </Notice>
-          </div>
-        )}
-        <Page key={route.name === "song" || route.name === "genre" || route.name === "artist" ? undefined : route.name} />
-      </main>
+        <main
+          id="conteudo"
+          className={`min-h-dvh transition-[padding-left] duration-(--duration-base) ease-(--ease-out) md:pl-(--rail-offset) ${current ? "pb-44 md:pb-36" : "pb-24 md:pb-12"}`}
+        >
+          {health.state === "offline" && (
+            <div className="mx-auto max-w-6xl px-4 pt-6 sm:px-8">
+              <Notice tone="danger" title="Sem conexão com o modelo" action={<Button onClick={checkHealth}>Tentar de novo</Button>}>
+                A API parou de responder. Confira o terminal do uvicorn.
+              </Notice>
+            </div>
+          )}
+          <Page key={route.name === "song" || route.name === "genre" || route.name === "artist" ? undefined : route.name} />
+        </main>
 
-      <BottomNav active={activeNav} onNavigate={navigate} />
+        <BottomNav active={activeNav} onNavigate={navigate} />
 
-      {current &&
-        (spotifyStatus === "ready" ? (
-          <SdkEngine
-            {...engineProps}
-            onError={(err) => {
-              toast(`O Spotify não conseguiu tocar a música inteira (${err.message}). Voltando para a prévia.`);
-              setSpotifyStatus("off");
-            }}
-          >
-            {renderPlayer}
-          </SdkEngine>
-        ) : (
-          <EmbedEngine {...engineProps} placement={expanded ? "expanded" : "dock"}>
-            {renderPlayer}
-          </EmbedEngine>
-        ))}
+        {current &&
+          (spotifyStatus === "ready" ? (
+            <SdkEngine
+              {...engineProps}
+              onError={(err) => {
+                toast(`O Spotify não conseguiu tocar a música inteira (${err.message}). Voltando para a prévia.`);
+                setSpotifyStatus("off");
+              }}
+            >
+              {renderPlayer}
+            </SdkEngine>
+          ) : (
+            <EmbedEngine {...engineProps} placement={expanded ? "expanded" : "dock"}>
+              {renderPlayer}
+            </EmbedEngine>
+          ))}
 
-      <CommandSearch
-        open={search.open}
-        title={search.title}
-        pickSong={search.pick}
-        onOpenChange={(open) => setSearch((s) => ({ ...s, open }))}
-        onSong={openSong}
-        onArtist={openArtist}
-        onGenre={openGenre}
-        onAction={(a) => a === "bridge" && navigate({ name: "discover" })}
-      />
-      <Confirm
-        open={confirmDelete}
-        onOpenChange={setConfirmDelete}
-        title="Apagar sua conta?"
-        description="Sua conta e todas as respostas do questionário serão apagadas. Isso não pode ser desfeito."
-        confirmLabel="Apagar conta"
-        onConfirm={removeAccount}
-      />
+        <CommandSearch
+          open={search.open}
+          title={search.title}
+          pickSong={search.pick}
+          onOpenChange={(open) => setSearch((s) => ({ ...s, open }))}
+          onSong={openSong}
+          onArtist={openArtist}
+          onGenre={openGenre}
+          onAction={(a) => a === "bridge" && navigate({ name: "discover" })}
+        />
+        <Confirm
+          open={confirmDelete}
+          onOpenChange={setConfirmDelete}
+          title="Apagar sua conta?"
+          description="Sua conta e todas as respostas do questionário serão apagadas. Isso não pode ser desfeito."
+          confirmLabel="Apagar conta"
+          onConfirm={removeAccount}
+        />
+
+        <AnimatePresence>{intro && <Intro key="intro" onDone={() => setIntro(false)} />}</AnimatePresence>
+      </TooltipProvider>
     </AppContext.Provider>
   );
 }

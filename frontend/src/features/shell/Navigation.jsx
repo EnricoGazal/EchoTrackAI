@@ -1,4 +1,5 @@
-import { Compass, House, Library, Search, UserRound } from "lucide-react";
+import { Compass, House, Library, PanelLeftClose, PanelLeftOpen, Search, UserRound } from "lucide-react";
+import { Tooltip } from "../../ui/tooltip";
 import { Logo } from "../../ui/logo";
 import { numberBR } from "../../utils";
 import { cn } from "../../lib/utils";
@@ -10,57 +11,108 @@ export const NAV = [
   { name: "library", label: "Biblioteca", icon: Library },
 ];
 
-export function Sidebar({ active, onNavigate, health, account }) {
+const isMac = typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent);
+export const RAIL_SHORTCUT = isMac ? "⌘B" : "Ctrl+B";
+
+/**
+ * Menu lateral flutuante: solto das bordas, cantos arredondados e vidro bem
+ * leve. Recolhe para só os ícones (botão na borda ou ⌘B / Ctrl+B).
+ */
+export function Sidebar({ active, onNavigate, health, account, open, onToggle }) {
+  const ToggleIcon = open ? PanelLeftClose : PanelLeftOpen;
+  const toggleLabel = open ? "Recolher menu" : "Expandir menu";
+
   return (
-    <aside className="fixed inset-y-0 left-0 z-30 hidden w-64 flex-col gap-6 border-r border-border/60 bg-bg/80 p-4 backdrop-blur-md md:flex">
-      <button type="button" onClick={() => onNavigate({ name: "home" })} className="w-fit rounded-sm px-2 pt-2" aria-label="EchoTrack, ir para o início">
-        <Logo />
-      </button>
+    <aside
+      aria-label="Menu"
+      data-open={open}
+      className={cn(
+        "group/rail fixed top-(--rail-gap) bottom-(--rail-gap) left-(--rail-gap) z-30 hidden w-(--rail-w) flex-col gap-6 rounded-xl p-3 md:flex",
+        "bg-(--rail-bg) shadow-2 ring-1 ring-(--rail-ring) backdrop-blur-(--rail-blur)",
+        "transition-[width] duration-(--duration-base) ease-(--ease-out)"
+      )}
+    >
+      <div className="flex h-12 items-center">
+        <button
+          type="button"
+          onClick={() => onNavigate({ name: "home" })}
+          className="flex h-full min-w-0 items-center overflow-hidden rounded-pill px-1.5"
+          aria-label="EchoTrack, ir para o início"
+        >
+          <Logo className="[&>svg]:size-10" withName={false} />
+          <span
+            className={cn(
+              "ml-2.5 font-display-wide text-heading font-semibold whitespace-nowrap tracking-tight transition-opacity duration-(--duration-fast)",
+              open ? "opacity-100" : "opacity-0"
+            )}
+          >
+            EchoTrack
+          </span>
+        </button>
+      </div>
 
+      {/* Recolher / expandir: fica na borda do menu, visível nos dois estados */}
+      <Tooltip content={`${toggleLabel} · ${RAIL_SHORTCUT}`} side="right">
+        <button
+          type="button"
+          onClick={onToggle}
+          aria-label={toggleLabel}
+          aria-expanded={open}
+          className={cn(
+            "absolute top-6 -right-3.5 grid size-7 place-items-center rounded-pill bg-surface-2 text-text-2 shadow-2 ring-1 ring-border",
+            "transition-colors duration-(--duration-fast) hover:bg-surface-3 hover:text-text-1"
+          )}
+        >
+          <ToggleIcon aria-hidden="true" className="size-4" />
+        </button>
+      </Tooltip>
 
-      <nav aria-label="Principal">
-        <ul className="grid gap-1">
+      <nav aria-label="Principal" className="min-w-0">
+        <ul className="grid grid-cols-1 gap-1">
           {NAV.map(({ name, label, icon: Icon }) => {
             const on = active === name;
-            return (
-              <li key={name}>
-                <button
-                  type="button"
-                  aria-current={on ? "page" : undefined}
-                  onClick={() => onNavigate({ name })}
-                  className={cn(
-                    "relative flex h-11 w-full items-center gap-3 rounded-md px-3 text-small font-medium transition-colors duration-(--duration-fast)",
-                    on ? "bg-surface-2 text-text-1" : "text-text-2 hover:bg-surface-1 hover:text-text-1"
-                  )}
-                >
-                  {on && <span aria-hidden="true" className="absolute inset-y-2.5 left-0 w-1 rounded-pill bg-brand" />}
-                  <Icon aria-hidden="true" className={cn("size-5", on && "text-brand")} />
-                  {label}
-                </button>
-              </li>
+            const item = (
+              <button
+                type="button"
+                aria-current={on ? "page" : undefined}
+                aria-label={open ? undefined : label}
+                onClick={() => onNavigate({ name })}
+                className={cn(
+                  "flex h-11 w-full items-center gap-3 overflow-hidden rounded-lg px-4 text-small font-medium whitespace-nowrap transition-colors duration-(--duration-fast)",
+                  on ? "bg-surface-3/70 text-text-1 shadow-1" : "text-text-2 hover:bg-surface-2/70 hover:text-text-1"
+                )}
+              >
+                <Icon aria-hidden="true" className={cn("size-5 shrink-0", on && "text-brand")} />
+                <span className={cn("transition-opacity duration-(--duration-fast)", open ? "opacity-100" : "opacity-0")}>{label}</span>
+              </button>
             );
+            return <li key={name}>{open ? item : <Tooltip content={label} side="right">{item}</Tooltip>}</li>;
           })}
         </ul>
       </nav>
 
-      <div className="mt-auto grid gap-3 pb-24">
-        <HealthStatus health={health} />
-        {account}
+      <div className="mt-auto grid grid-cols-1 gap-2">
+        <HealthStatus health={health} compact={!open} />
+        <div className="rounded-lg bg-(--account-bg) p-1 shadow-1 ring-1 ring-(--rail-ring)">{account}</div>
       </div>
     </aside>
   );
 }
 
-export function HealthStatus({ health, className }) {
+export function HealthStatus({ health, className, compact = false }) {
   const ok = health.state === "ok";
+  const text = ok
+    ? `Modelo ativo · ${numberBR(health.n_songs)} músicas`
+    : health.state === "checking"
+    ? "Conectando ao modelo…"
+    : "API desligada";
   return (
-    <p className={cn("flex items-center gap-2 px-2 text-caption text-text-2 tracking-normal", className)}>
-      <span aria-hidden="true" className={cn("size-2 rounded-pill", ok ? "bg-ai" : health.state === "checking" ? "bg-text-3" : "bg-danger")} />
-      {ok
-        ? `Modelo ativo · ${numberBR(health.n_songs)} músicas`
-        : health.state === "checking"
-        ? "Conectando ao modelo…"
-        : "API desligada"}
+    <p
+      title={compact ? text : undefined}
+      className={cn("flex h-6 items-center gap-2 overflow-hidden px-5.5 text-caption whitespace-nowrap text-text-2 tracking-normal", className)}
+    >
+      <span aria-hidden="true" className={cn("size-2 shrink-0 rounded-pill", ok ? "bg-ai" : health.state === "checking" ? "bg-text-3" : "bg-danger")} />
+      <span className={cn("transition-opacity duration-(--duration-fast)", compact ? "sr-only" : "")}>{text}</span>
     </p>
   );
 }

@@ -23,7 +23,7 @@ const toUri = (song) => `spotify:track:${song.track_id}`;
 // Onde o player oficial do Spotify aparece. É o mesmo elemento sempre (trocar
 // de lugar no DOM recarregaria o player); só muda a posição na tela.
 const PLACEMENT = {
-  dock: "bottom-1.5 right-4 w-72 max-md:left-0 max-md:top-full max-md:bottom-auto",
+  dock: "bottom-[calc(var(--rail-gap)+var(--space))] right-[calc(var(--rail-gap)+var(--space)*4)] w-72 max-md:left-0 max-md:top-full max-md:bottom-auto",
   expanded: "", // posição vem do espaço reservado na tela cheia (ver efeito abaixo)
 };
 

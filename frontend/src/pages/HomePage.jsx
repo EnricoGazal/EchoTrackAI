@@ -10,7 +10,6 @@ import { SectionHeader } from "../ui/section";
 import { AiMark } from "../features/ai/AiLayer";
 import { TrackTile } from "../features/tracks/TrackTile";
 import { HeroSearch } from "../features/shell/CommandSearch";
-import { numberBR } from "../utils";
 import { cn } from "../lib/utils";
 
 function greeting() {
@@ -22,7 +21,7 @@ function greeting() {
 }
 
 export function HomePage() {
-  const { user, health, playFrom, current, paused, openSong, openArtist, openGenre, navigate } = useApp();
+  const { user, playFrom, current, paused, openSong, openArtist, openGenre, navigate } = useApp();
   const [forYou, setForYou] = useState(null);
   const [popular, setPopular] = useState(null);
   const [more, setMore] = useState(false);
@@ -42,25 +41,17 @@ export function HomePage() {
 
   return (
     <div className="mx-auto grid grid-cols-[minmax(0,1fr)] max-w-7xl gap-16 px-4 py-8 sm:px-8 sm:py-12">
-      {/* Abertura: em poucos segundos, o que é e de onde vêm as recomendações */}
-      <section className="grid gap-6">
-        <p className="text-small text-text-2">
+      {/* Início: a saudação, a busca e a ponte. O slogan fica na abertura do site. */}
+      <section className="grid justify-items-center gap-8 pt-6 pb-4 sm:pt-14">
+        <h1 className="text-center font-display-tight text-display font-heavy text-balance">
           {greeting()}
           {firstName ? `, ${firstName}` : ""}
-        </p>
-        <h1 className="font-display-tight text-hero-m font-heavy text-balance">
-          Música escolhida pelo som.
-          <span className="block text-text-3">Não pela audiência.</span>
+          <span className="text-brand">.</span>
         </h1>
-        <p className="max-w-[58ch] text-body text-text-2">
-          O <span className="text-text-1">EchoTrack AI</span> compara 128 características de áudio de{" "}
-          {health.n_songs ? numberBR(health.n_songs) : "quase 90 mil"} músicas, mostra de onde veio cada recomendação
-          e deixa você conduzir o resultado.
-        </p>
-        <div className="flex max-w-4xl flex-col gap-3 sm:flex-row sm:items-center">
-          <HeroSearch onSong={openSong} onArtist={openArtist} onGenre={openGenre} className="flex-1" />
-          <Button size="lg" className="h-16 shrink-0 px-6" onClick={() => navigate({ name: "discover" })}>
-            <GitCompareArrows aria-hidden="true" /> Criar uma ponte
+        <div className="grid w-full max-w-3xl justify-items-center gap-4">
+          <HeroSearch onSong={openSong} onArtist={openArtist} onGenre={openGenre} />
+          <Button variant="secondary" size="lg" className="px-6" onClick={() => navigate({ name: "discover" })}>
+            <GitCompareArrows aria-hidden="true" /> Criar uma ponte entre duas músicas
           </Button>
         </div>
       </section>

@@ -248,7 +248,7 @@ export function HeroSearch({ onSong, onArtist, onGenre, className }) {
       <Command shouldFilter={false} loop label="Buscar no EchoTrack">
         <div
           className={cn(
-            "flex h-16 items-center gap-4 rounded-pill bg-surface-1 px-6 shadow-2 ring-1 ring-border transition-[box-shadow,background-color] duration-(--duration-fast)",
+            "flex h-16 items-center gap-3 rounded-pill bg-surface-1 px-5 sm:gap-4 sm:px-6 shadow-2 ring-1 ring-border transition-[box-shadow,background-color] duration-(--duration-fast)",
             "focus-within:bg-surface-2 focus-within:ring-2 focus-within:ring-focus hover:ring-border-strong"
           )}
         >
@@ -268,17 +268,19 @@ export function HeroSearch({ onSong, onArtist, onGenre, className }) {
               }
             }}
             placeholder="Busque uma música, artista ou gênero"
-            className="h-full w-full min-w-0 bg-transparent text-heading text-text-1 placeholder:text-text-3 focus:outline-none"
+            className="h-full w-full min-w-0 bg-transparent text-body text-text-1 placeholder:text-text-3 focus:outline-none sm:text-heading"
           />
           <kbd className="hidden shrink-0 rounded-xs bg-surface-3 px-2 py-1 text-caption text-text-2 tracking-normal sm:block">
             {isMac ? "⌘K" : "Ctrl K"}
           </kbd>
         </div>
-        {showList && (
-          <Command.List className="absolute inset-x-0 top-full z-30 mt-2 max-h-[min(60dvh,26rem)] overflow-y-auto overscroll-contain rounded-lg bg-(--glass-bg) p-1.5 shadow-3 ring-1 ring-(--glass-ring) backdrop-blur-(--glass-blur) animate-[pop-in_var(--duration-fast)_var(--ease-out)]">
-            <SearchResults q={q} {...search} onSong={done(onSong)} onArtist={done(onArtist)} onGenre={done(onGenre)} />
-          </Command.List>
-        )}
+        {/* A lista fica sempre no DOM (o campo aponta para ela); só aparece com algo para mostrar. */}
+        <Command.List
+          hidden={!showList}
+          className="absolute inset-x-0 top-full z-30 mt-2 max-h-[min(60dvh,26rem)] overflow-y-auto overscroll-contain rounded-lg bg-(--glass-bg) p-1.5 shadow-3 ring-1 ring-(--glass-ring) backdrop-blur-(--glass-blur) animate-[pop-in_var(--duration-fast)_var(--ease-out)]"
+        >
+          {showList && <SearchResults q={q} {...search} onSong={done(onSong)} onArtist={done(onArtist)} onGenre={done(onGenre)} />}
+        </Command.List>
       </Command>
     </div>
   );
