@@ -1,3 +1,4 @@
+import { useRef } from "react";
 import { Maximize2, Pause, Play, SkipBack, SkipForward, Volume1, Volume2, VolumeX, X } from "lucide-react";
 import { Button, IconButton } from "../../ui/button";
 import { Cover } from "../../ui/cover";
@@ -135,10 +136,22 @@ export function PlayerDock({
 }
 
 function VolumeControl({ volume, onChange }) {
-  const Icon = volume === 0 ? VolumeX : volume < 50 ? Volume1 : Volume2;
+  // Guarda o último volume com som, para o botão de mudo voltar nele.
+  const lastAudible = useRef(volume > 0 ? volume : 80);
+  if (volume > 0) lastAudible.current = volume;
+  const muted = volume === 0;
+  const Icon = muted ? VolumeX : volume < 50 ? Volume1 : Volume2;
   return (
-    <span className="flex w-40 items-center gap-2 text-text-2">
-      <Icon aria-hidden="true" className="size-4 shrink-0" />
+    <span className="flex w-44 items-center gap-1 text-text-2">
+      <IconButton
+        label={muted ? "Ativar som" : "Silenciar"}
+        size="icon-sm"
+        aria-pressed={muted}
+        onClick={() => onChange(muted ? lastAudible.current : 0)}
+        className={muted ? "text-text-1" : undefined}
+      >
+        <Icon />
+      </IconButton>
       <Slider value={[volume]} onValueChange={([v]) => onChange(v)} aria-label="Volume" tone="brand" />
     </span>
   );
