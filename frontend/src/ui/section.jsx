@@ -5,8 +5,11 @@ export function SectionHeader({ title, subtitle, action, mark, className, as: H 
   return (
     <div className={cn("flex flex-wrap items-end justify-between gap-x-6 gap-y-3", className)}>
       <div className="min-w-0">
-        {mark && <div className="mb-2">{mark}</div>}
-        <H className="font-display-wide text-title font-semibold">{title}</H>
+        {/* O selo (de onde veio o conteúdo) fica ao lado do título */}
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+          <H className="font-display-wide text-title font-semibold">{title}</H>
+          {mark}
+        </div>
         {subtitle && <p className="mt-1 max-w-[60ch] text-small text-text-2">{subtitle}</p>}
       </div>
       {action}

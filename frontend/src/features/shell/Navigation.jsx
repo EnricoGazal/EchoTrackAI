@@ -51,22 +51,6 @@ export function Sidebar({ active, onNavigate, health, account, open, onToggle })
         </button>
       </div>
 
-      {/* Recolher / expandir: fica na borda do menu, visível nos dois estados */}
-      <Tooltip content={`${toggleLabel} · ${RAIL_SHORTCUT}`} side="right">
-        <button
-          type="button"
-          onClick={onToggle}
-          aria-label={toggleLabel}
-          aria-expanded={open}
-          className={cn(
-            "absolute top-6 -right-3.5 grid size-7 place-items-center rounded-pill bg-surface-2 text-text-2 shadow-2 ring-1 ring-border",
-            "transition-colors duration-(--duration-fast) hover:bg-surface-3 hover:text-text-1"
-          )}
-        >
-          <ToggleIcon aria-hidden="true" className="size-4" />
-        </button>
-      </Tooltip>
-
       <nav aria-label="Principal" className="min-w-0">
         <ul className="grid grid-cols-1 gap-1">
           {NAV.map(({ name, label, icon: Icon }) => {
@@ -92,6 +76,21 @@ export function Sidebar({ active, onNavigate, health, account, open, onToggle })
       </nav>
 
       <div className="mt-auto grid grid-cols-1 gap-2">
+        {/* Recolher / expandir: alinhado com os ícones do menu nos dois estados */}
+        <Tooltip content={open ? RAIL_SHORTCUT : `${toggleLabel} · ${RAIL_SHORTCUT}`} side="right">
+          <button
+            type="button"
+            onClick={onToggle}
+            aria-label={toggleLabel}
+            aria-expanded={open}
+            className="flex h-11 w-full items-center gap-3 overflow-hidden rounded-lg px-4 text-small font-medium whitespace-nowrap text-text-2 transition-colors duration-(--duration-fast) hover:bg-surface-2/70 hover:text-text-1"
+          >
+            <ToggleIcon aria-hidden="true" className="size-5 shrink-0" />
+            <span aria-hidden="true" className={cn("transition-opacity duration-(--duration-fast)", open ? "opacity-100" : "opacity-0")}>
+              Recolher menu
+            </span>
+          </button>
+        </Tooltip>
         <HealthStatus health={health} compact={!open} />
         <div className="rounded-lg bg-(--account-bg) p-1 shadow-1 ring-1 ring-(--rail-ring)">{account}</div>
       </div>
