@@ -50,13 +50,21 @@ if [ ! -f frontend/node_modules/.package-lock.json ] || [ frontend/package-lock.
 fi
 
 # 5. Certificado HTTPS local (o login do Spotify exige https).
-if [ ! -f frontend/certs/cert.pem ] || [ ! -f frontend/certs/key.pem ]; then
+#    O Safari só aceita certificado de servidor com "serverAuth" e sem CA:TRUE;
+#    um certificado antigo sem isso é refeito.
+CERT=frontend/certs/cert.pem
+KEY=frontend/certs/key.pem
+if [ ! -f "$CERT" ] || [ ! -f "$KEY" ] || ! openssl x509 -in "$CERT" -noout -text 2>/dev/null | grep -q "TLS Web Server Authentication"; then
   step "Gerando o certificado HTTPS local"
   mkdir -p frontend/certs
   openssl req -x509 -newkey rsa:2048 -nodes -sha256 -days 365 \
     -subj "/CN=EchoTrack local" \
     -addext "subjectAltName=IP:127.0.0.1,DNS:localhost" \
-    -keyout frontend/certs/key.pem -out frontend/certs/cert.pem 2>/dev/null
+    -addext "basicConstraints=critical,CA:FALSE" \
+    -addext "keyUsage=critical,digitalSignature,keyEncipherment" \
+    -addext "extendedKeyUsage=serverAuth" \
+    -keyout "$KEY" -out "$CERT" 2>/dev/null
+  echo "Para o navegador não avisar mais, marque o certificado como confiável (veja o README)."
 fi
 
 # 6. Client ID do Spotify (opcional: sem ele, a prévia de 30 s continua funcionando).
