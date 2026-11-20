@@ -128,11 +128,14 @@ O script liga a API e o site e abre o navegador em `https://127.0.0.1:5173`. Ctr
 
 Na primeira vez ele também prepara tudo sozinho: cria o `.venv`, instala as dependências do Python e do site, treina o modelo e gera o certificado HTTPS local. Como o certificado é gerado no próprio computador, o navegador pede uma confirmação na primeira visita (Avançado → Continuar).
 
-Para o aviso não aparecer mais (o Safari, por exemplo, insiste nele), marque o certificado como confiável nas chaves do macOS. O sistema pede a sua senha:
+Para o aviso não aparecer nunca mais, em nenhum navegador, instale o [mkcert](https://github.com/FiloSottile/mkcert) uma vez. Ele cria uma autoridade de certificados só sua, em que o Mac passa a confiar (o `mkcert -install` pede a senha do computador):
 
 ```bash
-security add-trusted-cert -r trustRoot -k ~/Library/Keychains/login.keychain-db frontend/certs/cert.pem
+brew install mkcert
+mkcert -install
 ```
+
+Com o mkcert instalado, o `./dev.sh` gera o certificado por ele automaticamente.
 
 Para usar o Spotify Premium dentro do site, coloque o Client ID do seu app em `frontend/.env.local` (o script cria esse arquivo a partir do `frontend/.env.example`). Sem ele, a prévia de 30 segundos continua funcionando.
 

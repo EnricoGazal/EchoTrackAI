@@ -50,12 +50,22 @@ if [ ! -f frontend/node_modules/.package-lock.json ] || [ frontend/package-lock.
 fi
 
 # 5. Certificado HTTPS local (o login do Spotify exige https).
-#    O Safari só aceita certificado de servidor com "serverAuth" e sem CA:TRUE;
-#    um certificado antigo sem isso é refeito.
+#    Com o mkcert instalado (brew install mkcert && mkcert -install), o
+#    certificado sai de uma autoridade local em que o Mac já confia: nenhum
+#    navegador avisa. Sem ele, cai para um certificado do openssl, que o
+#    navegador pede para confirmar.
 CERT=frontend/certs/cert.pem
 KEY=frontend/certs/key.pem
-if [ ! -f "$CERT" ] || [ ! -f "$KEY" ] || ! openssl x509 -in "$CERT" -noout -text 2>/dev/null | grep -q "TLS Web Server Authentication"; then
-  step "Gerando o certificado HTTPS local"
+cert_info() { openssl x509 -in "$CERT" -noout -text 2>/dev/null; }
+if command -v mkcert >/dev/null 2>&1; then
+  if [ ! -f "$CERT" ] || [ ! -f "$KEY" ] || ! cert_info | grep -q "Issuer:.*mkcert"; then
+    step "Gerando o certificado HTTPS local (mkcert)"
+    mkdir -p frontend/certs
+    mkcert -cert-file "$CERT" -key-file "$KEY" 127.0.0.1 localhost ::1 >/dev/null 2>&1
+  fi
+elif [ ! -f "$CERT" ] || [ ! -f "$KEY" ] || ! cert_info | grep -q "TLS Web Server Authentication"; then
+  # O Safari só aceita certificado de servidor com "serverAuth" e sem CA:TRUE.
+  step "Gerando o certificado HTTPS local (openssl)"
   mkdir -p frontend/certs
   openssl req -x509 -newkey rsa:2048 -nodes -sha256 -days 365 \
     -subj "/CN=EchoTrack local" \
@@ -64,7 +74,7 @@ if [ ! -f "$CERT" ] || [ ! -f "$KEY" ] || ! openssl x509 -in "$CERT" -noout -tex
     -addext "keyUsage=critical,digitalSignature,keyEncipherment" \
     -addext "extendedKeyUsage=serverAuth" \
     -keyout "$KEY" -out "$CERT" 2>/dev/null
-  echo "Para o navegador não avisar mais, marque o certificado como confiável (veja o README)."
+  echo "Dica: instale o mkcert (veja o README) para o navegador nunca mais avisar."
 fi
 
 # 6. Client ID do Spotify (opcional: sem ele, a prévia de 30 s continua funcionando).
