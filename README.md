@@ -1,74 +1,83 @@
-# Sistema de Recomendação de Músicas
+# EchoTrack: Sistema de Recomendação de Músicas
 
-Projeto de um sistema de recomendação musical utilizando um dataset do Spotify. O objetivo é recomendar músicas semelhantes a partir de uma música informada pelo usuário, considerando características musicais e gêneros.
+Projeto Integrador VI (Sistemas de Informação, PUC-Campinas). O EchoTrack recomenda músicas pelo **som** de cada faixa, e não pelo que outras pessoas ouvem: a partir de uma música, ele monta uma playlist de faixas parecidas, explica por que cada uma entrou e deixa o usuário conduzir o resultado.
 
-## Tecnologias utilizadas
+É um sistema de **filtragem baseada em conteúdo** (*Content-Based Filtering*): não usa histórico de usuários, só as características de áudio e o gênero das músicas.
 
-- Python
-- Pandas
-- NumPy
-- Matplotlib
-- Scikit-learn
+## Tecnologias
 
-## Funcionalidades implementadas
+| Parte | Tecnologias |
+| --- | --- |
+| Dados e modelo | Python, pandas, NumPy, scikit-learn, Matplotlib (gráficos) |
+| API | FastAPI, Uvicorn, SQLite (local) ou PostgreSQL (nuvem) |
+| Site | React, Vite, Tailwind CSS, Radix UI, Motion |
+| Música | Player oficial do Spotify (prévia de 30 s ou faixa inteira com Spotify Premium) |
+| Publicação | Docker, Render, Neon |
 
-### 1. Carregamento dos dados
-- Leitura do dataset em formato CSV.
-- Carregamento centralizado pelo módulo `data_loader.py`.
+## Como funciona
 
-### 2. Tratamento dos dados
-- Remoção de valores nulos.
-- Remoção de músicas com `track_id` duplicado.
-- Remoção de registros duplicados.
-- Filtragem de durações inválidas ou superiores a 20 minutos.
-- Remoção de músicas com BPM inválido.
-- Reinicialização dos índices.
+### 1. Dados
 
-### 3. Análise dos gêneros
-- Contagem de músicas por gênero.
-- Identificação da quantidade de gêneros.
-- Geração de gráficos para analisar a distribuição dos dados.
+Dataset Spotify Tracks (`data/dataset.csv`), com 114.000 faixas e 113 gêneros. O tratamento (`src/preprocessing.py`):
 
-### 4. Engenharia de características (Feature Engineering)
-Preparação das características musicais para o algoritmo de recomendação:
+- remove valores nulos;
+- remove músicas com `track_id` repetido e registros duplicados;
+- remove durações inválidas ou acima de 20 minutos;
+- remove músicas com BPM inválido.
 
-- Aplicação de `log1p` em variáveis assimétricas.
-- Padronização de características numéricas com `StandardScaler`.
-- Codificação dos gêneros com One-hot Encoding.
-- Transformação da tonalidade musical (`key`) utilizando seno e cosseno.
-- Aplicação de peso nas características de gênero.
+Depois da limpeza ficam **89.512 músicas**. No site, os 113 gêneros aparecem agrupados em 18 categorias (`src/genres.py`).
 
-### 5. Sistema de recomendação
+### 2. Engenharia de características
 
-Foram implementados dois métodos:
+Cada música vira um vetor de **128 números** (`src/features.py`):
 
-**Baseline — Similaridade do Cosseno**
+- **11 características numéricas padronizadas** com `StandardScaler`: danceability, energy, acousticness, valence, loudness, tempo, duration_ms, time_signature, speechiness, instrumentalness e liveness. As três últimas são assimétricas e passam antes por `log1p`.
+- **Tonalidade (`key`) em seno e cosseno**, para que tons vizinhos no ciclo (como dó e si) fiquem próximos.
+- **`mode` e `explicit`** como 0 ou 1.
+- **113 gêneros em one-hot**, com peso 1,2. O peso foi escolhido na validação: sem ele as playlists misturam estilos, e com peso maior ficam presas a um gênero só.
 
-Compara a música escolhida com as demais músicas do dataset e retorna as mais semelhantes.
+### 3. Recomendação
 
-**MMR — Maximal Marginal Relevance**
+Dois métodos (`src/recommender.py`):
 
-Busca equilibrar relevância e diversidade, evitando recomendações excessivamente repetitivas.
+- **Similaridade do cosseno (baseline):** compara o vetor da música escolhida com todo o catálogo e devolve as mais parecidas. Os vetores ficam normalizados na memória, então a comparação é uma única multiplicação de matrizes.
+- **MMR (Maximal Marginal Relevance), o método padrão:** entre as 100 músicas mais parecidas, escolhe uma por vez a que tem a maior pontuação
 
-### 6. EchoTrack: a aplicação
+  `λ × semelhança com a música de partida − (1 − λ) × semelhança com as músicas já escolhidas`
 
-Interface web (React) e API (FastAPI) sobre o mesmo modelo. A recomendação é sempre
-baseada no conteúdo (o som de cada faixa), e a interface mostra de onde cada
-recomendação veio e por quê.
+  com λ = 0,75. Assim a playlist continua parecida com a música de partida, mas sem faixas repetitivas.
 
-- **Explicação de cada recomendação:** afinidade (similaridade do cosseno), as 3
-  características que mais aproximam a faixa da música de partida e se ela entrou
-  por ser muito parecida ou "para variar" (escolha do MMR).
-- **Rádio dirigível:** controles que puxam a playlist para mais (ou menos) energia,
-  acústica e alegria, e um controle "parecido ↔ variado" que ajusta o λ do MMR.
-  Cada controle desloca o vetor de partida em até 1,5 desvio-padrão na característica
-  escolhida; o modelo não é retreinado.
-- **Ponte entre duas músicas:** paradas ao longo da reta entre os vetores das duas
-  músicas; em cada parada entra a faixa mais próxima, dentro dos estilos das duas pontas.
-- **Fora da bolha:** dentro das músicas de som mais próximo, as menos populares
-  sobem no ranking (o contrário do viés de popularidade).
-- **Feito para você:** recomendações a partir do questionário, cada uma dizendo de
-  qual gosto do perfil ela veio.
+### 4. Avaliação
+
+Como não há histórico de escuta de usuários reais, a avaliação é offline (`src/evaluate.py`):
+
+- divisão estratificada por subgênero em 70% treino, 15% validação e 15% teste, com semente 42;
+- 1.500 consultas por etapa;
+- uma recomendação conta como acerto "pelo som" quando a energia e o clima (valence) ficam a até 0,15 da música de partida e o andamento a até 8%;
+- métricas: Precision@10, Recall@10, NDCG@10 (com relevância graduada em três níveis de tolerância), gêneros por playlist e popularidade média.
+
+Resultados no conjunto de teste:
+
+| Método | Precision@10 | NDCG@10 | Mesmo subgênero | Gêneros por playlist | Popularidade média |
+| --- | --- | --- | --- | --- | --- |
+| MMR, áudio + gênero (padrão) | 30,7% | 0,236 | 68% | 3,0 | 34,0 |
+| Cosseno, áudio + gênero | 29,0% | 0,229 | 73% | 2,5 | 33,7 |
+| Somente áudio (MMR) | 40,8% | 0,323 | 11% | 5,2 | 34,4 |
+| Fora da bolha (MMR) | 30,4% | 0,233 | 67% | 3,2 | 26,6 |
+| Aleatório | 2,0% | 0,015 | 1% | 7,1 | 33,2 |
+| Mais populares | 2,4% | 0,022 | 1% | 4,0 | 96,5 |
+
+O modelo padrão acerta cerca de 15 vezes mais que o aleatório. O "somente áudio" acerta mais o som, mas mistura estilos sem relação (só 11% do mesmo subgênero); por isso o gênero entra no vetor. Treino, validação e teste dão Precision@10 de 29,8%, 30,4% e 30,7%, sem sinal de sobreajuste.
+
+## EchoTrack: a aplicação
+
+Interface web (React) e API (FastAPI) sobre o mesmo modelo. A interface mostra de onde cada recomendação veio e por quê.
+
+- **Explicação de cada recomendação:** afinidade (similaridade do cosseno), as 3 características que mais aproximam a faixa da música de partida e se ela entrou por ser muito parecida ou "para variar" (escolha do MMR).
+- **Rádio dirigível:** controles que puxam a playlist para mais (ou menos) energia, acústica e alegria, e um controle "parecido ↔ variado" que ajusta o λ do MMR. Cada controle desloca o vetor de partida em até 1,5 desvio-padrão na característica escolhida; o modelo não é retreinado.
+- **Ponte entre duas músicas:** paradas ao longo da reta entre os vetores das duas músicas; em cada parada entra a faixa mais próxima ainda não usada, dentro dos estilos das duas pontas.
+- **Fora da bolha:** dentro das músicas de som mais próximo, as menos populares sobem no ranking (o contrário do viés de popularidade).
+- **Contas e Feito para você:** cadastro com consentimento, questionário inicial e recomendações a partir do perfil, cada uma dizendo de qual gosto ela veio.
 
 Principais rotas da API:
 
@@ -80,43 +89,49 @@ Principais rotas da API:
 | `GET /api/search?q=` | Busca por título e artista |
 | `GET /api/artist?name=` | Músicas do artista e artistas de som parecido |
 | `GET /api/me/for-you` | Recomendações do perfil (precisa de login) |
+| `GET /api/health` | Estado da API e tamanho do catálogo |
 
-Cada resposta de recomendação traz `elapsed_ms`, o tempo que o modelo levou.
+Cada resposta de recomendação traz `elapsed_ms`, o tempo que o modelo levou (cerca de 8 ms por recomendação).
 
 ## Estrutura do projeto
 
 ```text
 Sistemas-de-recomendacao/
-│
-├── data/
-│   ├── dataset.csv
-│   ├── feature_matrix.csv
-│   ├── features.npy
-│   ├── recommendations_baseline.csv
-│   └── recommendations_mmr.csv
-│
-├── outputs/
-│   ├── musicas_por_genero.png
-│   └── histograma_generos.png
-│
-├── src/
-│   ├── main.py
-│   ├── data_loader.py
-│   ├── data_types.py
-│   ├── preprocessing.py
-│   ├── features.py
-│   ├── genre_analysis.py
-│   └── recommender.py
-│
-├── requirements.txt
-└── README.md
+├── app/                    API (FastAPI)
+│   ├── main.py             cria a API e entrega o site publicado
+│   ├── router.py           busca, recomendação, rádio, ponte, gêneros e capas
+│   ├── accounts.py         contas, questionário e Feito para você
+│   ├── schemas.py          formatos das respostas
+│   └── state.py            carrega o modelo na memória
+├── src/                    dados e modelo
+│   ├── main.py             recomendador no terminal
+│   ├── data_loader.py      leitura do dataset
+│   ├── data_types.py       tipos das colunas
+│   ├── preprocessing.py    limpeza dos dados
+│   ├── genre_analysis.py   gráficos dos gêneros
+│   ├── genres.py           18 categorias de gênero
+│   ├── features.py         vetor de 128 características
+│   ├── recommender.py      cosseno, MMR, rádio dirigível, ponte e fora da bolha
+│   ├── profile.py          perfil musical a partir do questionário
+│   ├── build_model.py      gera os arquivos do modelo em models/
+│   ├── persistence.py      salva e carrega o modelo
+│   └── evaluate.py         avaliação offline
+├── frontend/               site (React + Vite)
+├── data/                   dataset e resultados do recomendador no terminal
+├── models/                 modelo gerado (fora do Git)
+├── outputs/                gráficos dos gêneros (fora do Git)
+├── reports/                resultados da avaliação (fora do Git)
+├── dev.sh                  liga a API e o site com um comando
+├── Dockerfile              imagem única para publicação
+├── render.yaml             configuração do Render
+└── requirements.txt
 ```
 
-Os arquivos gerados durante a execução são recriados pelo programa e não precisam estar previamente disponíveis.
+`models/`, `outputs/` e `reports/` são gerados pelos comandos abaixo e não vão para o Git.
 
-## Como executar o projeto
+## Como executar
 
-### Jeito rápido: o site inteiro com um comando (macOS e Linux)
+### Opção 1: o site inteiro com um comando (macOS e Linux)
 
 Na pasta principal do projeto:
 
@@ -126,9 +141,9 @@ Na pasta principal do projeto:
 
 O script liga a API e o site e abre o navegador em `https://127.0.0.1:5173`. Ctrl+C desliga os dois.
 
-Na primeira vez ele também prepara tudo sozinho: cria o `.venv`, instala as dependências do Python e do site, treina o modelo e gera o certificado HTTPS local. Como o certificado é gerado no próprio computador, o navegador pede uma confirmação na primeira visita (Avançado → Continuar).
+Na primeira vez ele também prepara tudo sozinho: cria o `.venv`, instala as dependências do Python e do site, treina o modelo e gera o certificado HTTPS local (o login do Spotify exige HTTPS). Como o certificado é gerado no próprio computador, o navegador pede uma confirmação na primeira visita (Avançado → Continuar).
 
-Para o aviso não aparecer nunca mais, em nenhum navegador, instale o [mkcert](https://github.com/FiloSottile/mkcert) uma vez. Ele cria uma autoridade de certificados só sua, em que o Mac passa a confiar (o `mkcert -install` pede a senha do computador):
+Para o aviso não aparecer nunca mais, em nenhum navegador, instale o [mkcert](https://github.com/FiloSottile/mkcert) uma vez. Ele cria uma autoridade de certificados só sua, em que o computador passa a confiar (o `mkcert -install` pede a senha do computador):
 
 ```bash
 brew install mkcert
@@ -139,71 +154,65 @@ Com o mkcert instalado, o `./dev.sh` gera o certificado por ele automaticamente.
 
 Para usar o Spotify Premium dentro do site, coloque o Client ID do seu app em `frontend/.env.local` (o script cria esse arquivo a partir do `frontend/.env.example`). Sem ele, a prévia de 30 segundos continua funcionando.
 
-### Passo a passo: só o recomendador no terminal
+### Opção 2: passo a passo (Windows ou sem o `dev.sh`)
 
-### 1. Clonar o repositório
+Requisitos: Python 3.9 ou mais novo e Node.js 20 ou mais novo.
 
-```bash
-git clone https://github.com/Luc7s/Sistemas-de-recomendacao.git
-```
+1. Clone o repositório e entre na pasta:
 
-### 2. Entrar na pasta
+   ```bash
+   git clone https://github.com/Luc7s/Sistemas-de-recomendacao.git
+   cd Sistemas-de-recomendacao
+   ```
 
-```bash
-cd Sistemas-de-recomendacao
-```
+2. Crie o ambiente Python e instale as dependências:
 
-### 3. Instalar as dependências
+   ```bash
+   python -m venv .venv
+   source .venv/bin/activate        # no Windows: .venv\Scripts\activate
+   python -m pip install -r requirements.txt
+   ```
 
-```bash
-python -m pip install -r requirements.txt
-```
+3. Gere o modelo (cerca de 1 minuto, só na primeira vez):
 
-No Windows, caso necessário:
+   ```bash
+   python -m src.build_model
+   ```
 
-```bash
-py -m pip install -r requirements.txt
-```
+4. Ligue a API e deixe este terminal aberto:
 
-### 4. Adicionar o dataset
+   ```bash
+   uvicorn app.main:app --reload
+   ```
 
-Coloque o arquivo `dataset.csv` dentro da pasta `data/`.
+5. Em outro terminal, ligue o site:
 
-O caminho esperado é:
+   ```bash
+   cd frontend
+   npm install
+   npm run dev
+   ```
 
-```text
-data/dataset.csv
-```
+6. Abra `https://127.0.0.1:5173`. Sem certificados em `frontend/certs/`, o Vite gera um na hora e o navegador pede uma confirmação.
 
-### 5. Executar o projeto
+### Só o recomendador no terminal
 
-Na pasta principal, execute:
+Com as dependências instaladas, na pasta principal:
 
 ```bash
 python src/main.py
 ```
 
-Ou, no Windows:
+O programa pede o nome da música e, se quiser, o artista. Depois mostra as recomendações dos dois métodos (cosseno e MMR) e salva os resultados em CSV na pasta `data/`.
+
+### Avaliação e gráficos
 
 ```bash
-py src/main.py
+python -m src.evaluate            # cerca de 3 minutos; resultados em reports/
+python src/genre_analysis.py      # gráficos dos gêneros em outputs/ (precisa do Matplotlib)
 ```
 
-### 6. Pesquisar uma música
-
-O programa solicitará:
-
-```text
-Digite o nome da música:
-Digite o artista (opcional):
-```
-
-Depois, serão exibidas as recomendações geradas pelos dois métodos:
-
-- Baseline
-- MMR
-
-Os resultados também são salvos em arquivos CSV na pasta `data/`.
+O Matplotlib não está no `requirements.txt`, porque a API publicada não precisa dele. Para os gráficos: `python -m pip install matplotlib`.
 
 ## Publicação na internet
 
@@ -233,10 +242,6 @@ No plano gratuito o serviço "dorme" depois de 15 minutos sem acesso, e o primei
 
 ## Próximas etapas
 
-- Validar e comparar os resultados dos algoritmos.
-- Avaliar a diversidade e a qualidade das recomendações.
+- Testes de usabilidade com usuários reais.
+- Publicar o site em `www.echotrack.com.br`.
 - Usar as respostas dos usuários cadastrados para calibrar o perfil musical.
-
-## Objetivo
-
-Desenvolver um sistema de recomendação musical baseado em conteúdo (*Content-Based Filtering*), utilizando características das músicas para identificar similaridades e gerar recomendações.

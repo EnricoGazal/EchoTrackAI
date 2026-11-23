@@ -9,6 +9,7 @@ models/
 
 # Outputs
 outputs/
+reports/
 
 # Environments
 .venv/
