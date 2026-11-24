@@ -179,13 +179,7 @@ Requisitos: Python 3.9 ou mais novo e Node.js 20 ou mais novo.
    python -m src.build_model
    ```
 
-4. Ligue a API e deixe este terminal aberto:
-
-   ```bash
-   uvicorn app.main:app --reload
-   ```
-
-5. Em outro terminal, ligue o site:
+4. Ligue o site e a API juntos:
 
    ```bash
    cd frontend
@@ -193,7 +187,9 @@ Requisitos: Python 3.9 ou mais novo e Node.js 20 ou mais novo.
    npm run dev
    ```
 
-6. Abra `https://127.0.0.1:5173`. Sem certificados em `frontend/certs/`, o Vite gera um na hora e o navegador pede uma confirmação.
+   O `npm run dev` liga também a API (com o Python do `.venv`), e o Ctrl+C desliga os dois. Se a API já estiver ligada na porta 8000, ele usa essa.
+
+5. Abra `https://127.0.0.1:5173`. Sem certificados em `frontend/certs/`, o Vite gera um na hora e o navegador pede uma confirmação.
 
 ### Só o recomendador no terminal
 
