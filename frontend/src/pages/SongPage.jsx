@@ -40,7 +40,10 @@ export function SongPage() {
 
   const data = list.data && list.data.seed.track_id === id ? list.data : null;
   const seed = data?.seed ?? (hint?.song?.track_id === id ? hint.song : null);
-  const items = data?.recommendations ?? [];
+  const recs = data?.recommendations ?? [];
+  // A música escolhida abre a playlist; depois vêm as recomendações, da mais
+  // parecida para a menos parecida (a API já manda nessa ordem).
+  const items = useMemo(() => (data ? [data.seed, ...recs] : []), [data]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (data) rememberPlaylist({ kind: "song", id, title: cleanTitle(data.seed.track_name), subtitle: splitArtists(data.seed.artists).join(", "), cover: id });
@@ -49,7 +52,7 @@ export function SongPage() {
   const origin = seed ? { kind: "seed", seed } : null;
   const listPlaying = current && items.some((s) => s.track_id === current.track_id) && !paused;
   const seedPlaying = current?.track_id === id && !paused;
-  const avgPop = items.length ? Math.round(items.reduce((a, s) => a + s.popularity, 0) / items.length) : null;
+  const avgPop = recs.length ? Math.round(recs.reduce((a, s) => a + s.popularity, 0) / recs.length) : null;
 
   if (list.error && !data) {
     return (

@@ -361,6 +361,9 @@ def recommend(
             popularity=state.popularity,
             obscurity=OBSCURITY if obscure else 0.0,
         )
+        # O MMR escolhe quais músicas entram; a playlist mostra as mais
+        # parecidas primeiro.
+        recs = recs.sort_values("similarity", ascending=False, kind="stable").reset_index(drop=True)
         seed_row = df.iloc[idx]
         return RecommendResponse(
             seed=to_song_out(seed_row),
