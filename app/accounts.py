@@ -285,7 +285,8 @@ def onboarding_artists(genres: str = Query(""), limit: int = Query(30, ge=1, le=
 class OnboardingIn(BaseModel):
     genres: List[str] = []
     artists: List[str] = []
-    era_songs: List[str] = []
+    songs: List[str] = []  # músicas que a pessoa buscou e escolheu
+    era_songs: List[str] = []  # versão antiga do questionário
     contexts: List[str] = []
 
 
@@ -308,17 +309,18 @@ def onboarding(body: OnboardingIn, user=Depends(current_user)):
     genres = [g for g in body.genres if g in GROUPS_BY_ID]
     artists = [a for a in body.artists if a in state.artist_songs]
     era = [t for t in body.era_songs if t in state.id_to_index]
+    chosen_songs = list(dict.fromkeys(t for t in body.songs + body.era_songs if t in state.id_to_index))
     if not genres and not artists:
         raise HTTPException(status_code=422, detail="Escolha pelo menos um gênero ou artista.")
 
     # Músicas que representam o gosto: as 5 mais populares de cada artista
-    # escolhido e as músicas da adolescência marcadas.
+    # escolhido e as músicas escolhidas na busca.
     idx = []
     pop = df["popularity"].to_numpy()
     for a in artists:
         songs = state.artist_songs[a]
         idx.extend(songs[np.argsort(-pop[songs])][:5].tolist())
-    idx.extend(state.id_to_index[t] for t in era)
+    idx.extend(state.id_to_index[t] for t in chosen_songs)
 
     vectors = [state.X[idx].mean(axis=0)] if idx else []
     vectors += [state.genre_profiles[g] for g in genres if g in state.genre_profiles]
@@ -335,7 +337,7 @@ def onboarding(body: OnboardingIn, user=Depends(current_user)):
     profile["age_confirmed"] = None
     profile["top_genres"] = [group_label(g) for g in sample["genre_group"].value_counts().index[:3]] or [group_label(g) for g in genres[:3]]
     profile["artists"] = artists[:6]
-    profile["seeds"] = {"artists": artists[:8], "era_songs": era[:6], "genres": genres[:4]}
+    profile["seeds"] = {"artists": artists[:8], "era_songs": chosen_songs[:6], "genres": genres[:4]}
     profile["taste"] = [round(float(v), 5) for v in taste]
 
     conn.execute(

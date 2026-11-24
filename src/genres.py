@@ -14,7 +14,13 @@ classificação considerou os artistas mais populares de cada um, por exemplo:
 - "groove" reúne groove metal (Pantera, Lamb of God);
 - "world-music" reúne música gospel e worship (Hillsong, Housefires);
 - "romance" reúne canções românticas russas (Valery Obodzinsky);
-- "happy" reúne happy hardcore e hardstyle (Scooter, Darren Styles).
+- "happy" reúne happy hardcore e hardstyle (Scooter, Darren Styles);
+- "funk" mistura o funk brasileiro (MCs, Anitta) com o funk americano;
+- "brazil" mistura estilos brasileiros variados (brazilian bass, rap, gospel).
+
+Cada grupo junta uma família de estilos (todo tipo de rock, todo tipo de
+funk). Os estilos brasileiros ficam em grupos próprios, e não num único
+"Brasileira".
 """
 
 GENRE_GROUPS = [
@@ -61,8 +67,18 @@ GENRE_GROUPS = [
     },
     {
         "id": "hip-hop",
-        "label": "Hip-hop e R&B",
-        "genres": ["hip-hop", "funk", "hardcore", "j-dance", "r-n-b", "sad", "soul"],
+        "label": "Hip-hop e rap",
+        "genres": ["hip-hop", "hardcore", "sad"],
+    },
+    {
+        "id": "funk",
+        "label": "Funk",
+        "genres": ["funk"],
+    },
+    {
+        "id": "rnb-soul",
+        "label": "R&B e soul",
+        "genres": ["r-n-b", "soul", "j-dance"],
     },
     {
         "id": "reggae",
@@ -75,9 +91,29 @@ GENRE_GROUPS = [
         "genres": ["latin", "latino", "reggaeton", "salsa", "spanish", "tango"],
     },
     {
+        "id": "sertanejo",
+        "label": "Sertanejo",
+        "genres": ["sertanejo"],
+    },
+    {
+        "id": "samba-pagode",
+        "label": "Samba e pagode",
+        "genres": ["samba", "pagode"],
+    },
+    {
+        "id": "forro",
+        "label": "Forró",
+        "genres": ["forro"],
+    },
+    {
+        "id": "mpb",
+        "label": "MPB",
+        "genres": ["mpb"],
+    },
+    {
         "id": "brasileira",
-        "label": "Brasileira",
-        "genres": ["brazil", "forro", "mpb", "pagode", "samba", "sertanejo"],
+        "label": "Brasileira variada",
+        "genres": ["brazil"],
     },
     {
         "id": "jazz-blues",

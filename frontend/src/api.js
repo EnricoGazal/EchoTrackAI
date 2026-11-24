@@ -140,13 +140,25 @@ export const getBridge = (from, to, opts, o) => cachedGet(bridgePath(from, to, o
 
 // Contas e perfil
 export const signup = (data) => request("/auth/signup", { method: "POST", body: data });
-export const login = (data) => request("/auth/login", { method: "POST", body: data });
-export const logout = () => request("/auth/logout", { method: "POST", body: {} });
+
+// Sem tela de login: na primeira visita o site cria sozinho uma conta de
+// visitante, guardada neste navegador, para o questionário e o
+// "Feito para você" continuarem funcionando.
+export async function startGuest() {
+  const id = crypto.randomUUID();
+  const data = await signup({
+    name: "Visitante",
+    email: `visitante-${id}@echotrack.local`,
+    password: crypto.randomUUID(),
+    consent: true,
+  });
+  setToken(data.token);
+  return data.user;
+}
 export const getMe = (o) => request("/me", o);
 export const deleteAccount = () => request("/me", { method: "DELETE" });
 export const getOnboardingOptions = (o) => cachedGet("/onboarding/options", o);
 export const getOnboardingArtists = (genres, o) =>
   request(`/onboarding/artists?genres=${encodeURIComponent(genres.join(","))}&limit=30`, o);
 export const sendOnboarding = (answers) => request("/onboarding", { method: "POST", body: answers });
-export const confirmAge = (range) => request("/me/age", { method: "POST", body: { range } });
 export const getForYou = (n = 12, o) => request(`/me/for-you?n=${n}`, o);

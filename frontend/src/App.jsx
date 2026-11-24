@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence } from "motion/react";
 import { Toaster, toast } from "sonner";
-import { deleteAccount, getHealth, getMe, getRadio, getToken, logout, prefetchRadio, setToken } from "./api";
+import { deleteAccount, getHealth, getMe, getRadio, getToken, prefetchRadio, setToken, startGuest } from "./api";
 import * as spotify from "./spotify";
 import { useRouter } from "./lib/router";
 import { useRail } from "./lib/rail";
@@ -17,7 +17,6 @@ import { PlayerDock } from "./features/player/PlayerDock";
 import { useLivePosition } from "./features/player/useLivePosition";
 import { NowPlaying } from "./features/now-playing/NowPlaying";
 import { listName, originFor } from "./features/ai/origin";
-import { AuthPage } from "./pages/AuthPage";
 import { Onboarding } from "./pages/Onboarding";
 import { HomePage } from "./pages/HomePage";
 import { DiscoverPage } from "./pages/DiscoverPage";
@@ -32,27 +31,28 @@ import { Button } from "./ui/button";
 import { Logo } from "./ui/logo";
 import { TooltipProvider } from "./ui/tooltip";
 
-// Fluxo de entrada: login, questionário e, por fim, o app.
+// Fluxo de entrada: conta de visitante (sem login), questionário e, por fim, o app.
 export default function App() {
-  const [stage, setStage] = useState("loading"); // loading | auth | onboarding | app | offline
+  const [stage, setStage] = useState("loading"); // loading | onboarding | app | offline
   const [user, setUser] = useState(null);
 
   async function loadUser() {
-    if (!getToken()) {
-      setStage("auth");
-      return;
-    }
     setStage("loading");
     try {
-      const me = await getMe();
+      let me = null;
+      if (getToken()) {
+        try {
+          me = await getMe();
+        } catch (err) {
+          if (err.kind === "offline") throw err;
+          setToken(null); // sessão inválida: começa uma nova conta de visitante
+        }
+      }
+      if (!me) me = await startGuest();
       setUser(me);
       setStage(me.onboarded ? "app" : "onboarding");
-    } catch (err) {
-      if (err.kind === "offline") setStage("offline");
-      else {
-        setToken(null);
-        setStage("auth");
-      }
+    } catch {
+      setStage("offline");
     }
   }
 
@@ -88,18 +88,6 @@ export default function App() {
         </Notice>
       </div>
     );
-  if (stage === "auth")
-    return (
-      <>
-        {toaster}
-        <AuthPage
-          onAuth={(u) => {
-            setUser(u);
-            setStage(u.onboarded ? "app" : "onboarding");
-          }}
-        />
-      </>
-    );
   if (stage === "onboarding")
     return (
       <Onboarding
@@ -123,7 +111,7 @@ export default function App() {
           setToken(null);
           setUser(null);
           window.history.replaceState({}, "", "/");
-          setStage("auth");
+          loadUser();
         }}
       />
     </>
@@ -270,14 +258,6 @@ function MainApp({ user, setUser, onRedo, onSignedOut }) {
 
   // --- Conta -----------------------------------------------------------------
   const [confirmDelete, setConfirmDelete] = useState(false);
-  async function signOut() {
-    try {
-      await logout();
-    } catch {
-      /* mesmo sem resposta, a sessão local é encerrada */
-    }
-    onSignedOut();
-  }
   async function removeAccount() {
     await deleteAccount();
     onSignedOut();
@@ -320,7 +300,6 @@ function MainApp({ user, setUser, onRedo, onSignedOut }) {
       onRedo={onRedo}
       onConnect={canConnect ? spotify.startLogin : null}
       onDisconnect={spotifyStatus === "ready" || spotifyStatus === "connecting" ? () => { spotify.disconnect(); setSpotifyStatus("off"); } : null}
-      onLogout={signOut}
       onDelete={() => setConfirmDelete(true)}
     />
   );

@@ -25,7 +25,7 @@ Dataset Spotify Tracks (`data/dataset.csv`), com 114.000 faixas e 113 gêneros. 
 - remove durações inválidas ou acima de 20 minutos;
 - remove músicas com BPM inválido.
 
-Depois da limpeza ficam **89.512 músicas**. No site, os 113 gêneros aparecem agrupados em 18 categorias (`src/genres.py`).
+Depois da limpeza ficam **89.512 músicas**. No site, os 113 gêneros aparecem agrupados em 24 categorias (`src/genres.py`).
 
 ### 2. Engenharia de características
 
@@ -109,7 +109,7 @@ Sistemas-de-recomendacao/
 │   ├── data_types.py       tipos das colunas
 │   ├── preprocessing.py    limpeza dos dados
 │   ├── genre_analysis.py   gráficos dos gêneros
-│   ├── genres.py           18 categorias de gênero
+│   ├── genres.py           24 categorias de gênero
 │   ├── features.py         vetor de 128 características
 │   ├── recommender.py      cosseno, MMR, rádio dirigível, ponte e fora da bolha
 │   ├── profile.py          perfil musical a partir do questionário

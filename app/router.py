@@ -282,7 +282,7 @@ def recommend_genre(
     obscure: bool = False,
 ):
     """Playlist a partir do perfil sonoro médio de um gênero principal (RF05).
-    `genre` é o id do gênero principal, como "rock" ou "brasileira"."""
+    `genre` é o id do gênero principal, como "rock" ou "funk"."""
     if genre not in state.genre_profiles:
         raise HTTPException(status_code=404, detail="Gênero não encontrado.")
 
