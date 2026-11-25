@@ -3,7 +3,8 @@ import { cn } from "../lib/utils";
 
 /**
  * Slider no padrão do EchoTrack. `bipolar` desenha o preenchimento a partir
- * do centro (para controles de "menos ↔ mais").
+ * do centro (para controles de "menos ↔ mais"). `size="sm"` deixa o botão
+ * menor (volume do player).
  */
 export function Slider({
   className,
@@ -12,6 +13,7 @@ export function Slider({
   max = 100,
   value,
   tone = "ai",
+  size = "md",
   "aria-label": label,
   "aria-valuetext": valueText,
   ...props
@@ -29,7 +31,7 @@ export function Slider({
       className={cn("relative flex h-6 w-full touch-none items-center select-none", className)}
       {...props}
     >
-      <S.Track className="relative h-1.5 grow overflow-hidden rounded-pill bg-surface-3">
+      <S.Track className={cn("relative grow overflow-hidden rounded-pill bg-surface-3", size === "sm" ? "h-1" : "h-1.5")}>
         {bipolar && <span aria-hidden="true" className="absolute inset-y-0 left-1/2 w-px bg-border-strong" />}
         <span
           aria-hidden="true"
@@ -41,7 +43,8 @@ export function Slider({
         aria-label={label}
         aria-valuetext={valueText}
         className={cn(
-          "block size-5 rounded-pill bg-text-1 shadow-2 ring-4 ring-transparent",
+          "block rounded-pill bg-text-1 shadow-2 ring-4 ring-transparent",
+          size === "sm" ? "size-3.5" : "size-5",
           "transition-[box-shadow,transform] duration-(--duration-fast) ease-out",
           "hover:scale-110 focus-visible:outline-none focus-visible:ring-focus/40 active:scale-95"
         )}

@@ -1,4 +1,5 @@
-import { useRef } from "react";
+import { useEffect, useRef, useState } from "react";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { Maximize2, Pause, Play, SkipBack, SkipForward, Volume1, Volume2, VolumeX, X } from "lucide-react";
 import { Button, IconButton } from "../../ui/button";
 import { Cover } from "../../ui/cover";
@@ -141,6 +142,41 @@ function VolumeControl({ volume, onChange }) {
   if (volume > 0) lastAudible.current = volume;
   const muted = volume === 0;
   const Icon = muted ? VolumeX : volume < 50 ? Volume1 : Volume2;
+
+  // O número (0 a 100) só aparece enquanto a pessoa ajusta o volume.
+  const [adjusting, setAdjusting] = useState(false);
+  const dragging = useRef(false);
+  const hideTimer = useRef(null);
+  const reduce = useReducedMotion();
+
+  const show = () => {
+    clearTimeout(hideTimer.current);
+    setAdjusting(true);
+  };
+  const hideSoon = () => {
+    clearTimeout(hideTimer.current);
+    hideTimer.current = setTimeout(() => !dragging.current && setAdjusting(false), 700);
+  };
+
+  useEffect(() => {
+    const onUp = () => {
+      if (!dragging.current) return;
+      dragging.current = false;
+      hideSoon();
+    };
+    window.addEventListener("pointerup", onUp);
+    window.addEventListener("pointercancel", onUp);
+    return () => {
+      window.removeEventListener("pointerup", onUp);
+      window.removeEventListener("pointercancel", onUp);
+      clearTimeout(hideTimer.current);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Centro do botão do slider: o Radix mantém o botão (0,875rem) dentro da trilha.
+  const left = `calc(${volume}% + (0.5 - ${volume / 100}) * 0.875rem)`;
+
   return (
     <span className="flex w-44 items-center gap-1 text-text-2">
       <IconButton
@@ -152,7 +188,41 @@ function VolumeControl({ volume, onChange }) {
       >
         <Icon />
       </IconButton>
-      <Slider value={[volume]} onValueChange={([v]) => onChange(v)} aria-label="Volume" tone="brand" />
+      <span
+        className="relative flex flex-1 items-center"
+        onPointerDown={() => {
+          dragging.current = true;
+          show();
+        }}
+      >
+        <Slider
+          size="sm"
+          value={[volume]}
+          onValueChange={([v]) => {
+            onChange(v);
+            show();
+            if (!dragging.current) hideSoon();
+          }}
+          aria-label="Volume"
+          aria-valuetext={`${volume} de 100`}
+          tone="brand"
+        />
+        <AnimatePresence>
+          {adjusting && (
+            <motion.span
+              aria-hidden="true"
+              initial={reduce ? { opacity: 0 } : { opacity: 0, y: 4, scale: 0.9 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={reduce ? { opacity: 0 } : { opacity: 0, y: 4, scale: 0.9 }}
+              transition={{ duration: 0.15, ease: [0.22, 1, 0.36, 1] }}
+              className="pointer-events-none absolute bottom-full mb-2 -translate-x-1/2 rounded-sm bg-surface-3 px-2 py-0.5 text-caption font-semibold tabular text-text-1 tracking-normal shadow-2"
+              style={{ left }}
+            >
+              {volume}
+            </motion.span>
+          )}
+        </AnimatePresence>
+      </span>
     </span>
   );
 }
