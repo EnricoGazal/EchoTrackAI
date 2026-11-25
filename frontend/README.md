@@ -4,24 +4,15 @@ Interface em React + Vite que consome a API FastAPI do projeto.
 
 ## Como rodar
 
-São dois terminais, ambos a partir da raiz do repositório.
-
-Terminal 1 (API):
-
-```bash
-python -m src.build_model        # só na primeira vez, gera a pasta models/
-uvicorn app.main:app --reload    # API em http://127.0.0.1:8000
-```
-
-Terminal 2 (front-end):
+Na pasta principal, gere o modelo uma vez (`python -m src.build_model`, veja o README principal). Depois:
 
 ```bash
 cd frontend
-npm install                      # só na primeira vez
-npm run dev                      # abre em http://localhost:5173
+npm install                      # só na primeira vez ou quando o package.json mudar
+npm run dev                      # liga o site e a API juntos
 ```
 
-Abra **https://127.0.0.1:5173** (o Vite repassa as chamadas `/api/...` para a porta 8000).
+Abra **https://127.0.0.1:5173**. O `npm run dev` liga a API (FastAPI, porta 8000) com o Python do `.venv` da pasta principal e a desliga junto com o site; se a API já estiver no ar, ele usa a que está rodando. O Vite repassa as chamadas `/api/...` para ela.
 
 ## HTTPS
 
@@ -55,7 +46,7 @@ as músicas inteiras dentro do EchoTrack, é preciso uma conta **Spotify Premium
    que vai usar (até 5 no modo de desenvolvimento).
 5. Na pasta `frontend/`, copie `.env.example` para `.env.local` e cole o Client ID:
    `VITE_SPOTIFY_CLIENT_ID=seu_client_id`
-6. Reinicie o `npm run dev`, abra o EchoTrack e use **Conectar Spotify Premium** no menu da conta.
+6. Reinicie o `npm run dev`, abra o EchoTrack e use **Ouvir músicas inteiras (Spotify Premium)** no menu da conta.
 
 O login usa o fluxo PKCE, então não há chave secreta no projeto. O Client ID fica
 em `.env.local`, que não vai para o Git.
@@ -78,7 +69,7 @@ componente usa cor, fonte ou espaçamento fora deles.
 
 ```text
 frontend/src/
-├── main.jsx, App.jsx           # entrada, login/questionário e o app (rotas, player, busca)
+├── main.jsx, App.jsx           # entrada, questionário e o app (rotas, player, busca)
 ├── api.js                      # chamadas à API, com cache das respostas do modelo
 ├── spotify.js                  # login no Spotify e Web Playback SDK
 ├── design/                     # tokens e tema do Tailwind
@@ -92,7 +83,7 @@ frontend/src/
 │   ├── now-playing/            # tela cheia: forma de onda, tempo, capa ao fundo
 │   └── shell/                  # menu lateral, navegação no celular, busca ⌘K
 └── pages/                      # Início, Descobrir (Ponte), Playlist, Gênero, Artista,
-                                # Perfil, Biblioteca, Login e Questionário
+                                # Perfil, Biblioteca e Questionário
 ```
 
 ## Decisões que reduzem a espera
