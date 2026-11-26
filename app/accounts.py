@@ -282,6 +282,58 @@ def onboarding_artists(genres: str = Query(""), limit: int = Query(30, ge=1, le=
     return {"artists": picked}
 
 
+# Idiomas e mercados muito específicos: só entram nas sugestões de quem já
+# escolheu um artista desse mesmo estilo.
+REGIONAL_GENRES = {
+    "indian", "pop-film", "k-pop", "j-pop", "j-rock", "j-idol", "j-dance", "anime",
+    "mandopop", "cantopop", "malay", "turkish", "iranian",
+}
+
+
+def _subgenres(name):
+    """Subgêneros do artista, do mais comum para o menos comum."""
+    genres = state.df_clean["track_genre"].to_numpy()[state.artist_songs[name]]
+    values, counts = np.unique(genres, return_counts=True)
+    return [str(g) for g in values[np.argsort(-counts)]]
+
+
+@router.get("/onboarding/related")
+def onboarding_related(
+    artist: str = Query(..., min_length=1),
+    exclude: str = Query(""),
+    limit: int = Query(3, ge=1, le=10),
+):
+    """Artistas parecidos com o que a pessoa acabou de escolher, como no
+    Spotify: aparecem logo ao lado dele no questionário. Parecido = som médio
+    próximo (cosseno) e mesmo estilo principal. Entre os parecidos, ganham os
+    mais conhecidos: mais populares, com mais músicas no catálogo e os que já
+    estão entre os destaques de algum gênero."""
+    row = state.artist_row.get(artist)
+    if row is None:
+        return {"artists": []}
+    skip = {artist, *(n for n in exclude.split("|") if n)}
+    mine = _subgenres(artist)
+    main_styles, all_styles = set(mine[:3]), set(mine)
+    popularity = state.df_clean["popularity"].to_numpy()
+    known = {name for names in state.top_artists_by_group.values() for name in names}
+
+    sims = state.artist_vectors @ state.artist_vectors[row]
+    scored = []
+    for j in np.argsort(-sims)[1:400]:
+        other = state.artist_profile_names[j]
+        if other in skip:
+            continue
+        pop = int(popularity[state.artist_songs[other]].max())
+        styles = _subgenres(other)
+        if pop < 50 or styles[0] not in main_styles or (set(styles) & REGIONAL_GENRES) - all_styles:
+            continue
+        n_songs = len(state.artist_songs[other])
+        score = float(sims[j]) + 0.004 * pop + 0.06 * np.log(n_songs) + 0.2 * (other in known)
+        scored.append((score, other))
+    scored.sort(reverse=True)
+    return {"artists": [artist_out(name) for _, name in scored[:limit]]}
+
+
 class OnboardingIn(BaseModel):
     genres: List[str] = []
     artists: List[str] = []

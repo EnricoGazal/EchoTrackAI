@@ -1,4 +1,6 @@
+import { useEffect, useState } from "react";
 import { ArrowRight, RefreshCw } from "lucide-react";
+import { confirmAge, getOnboardingOptions } from "../api";
 import { useApp } from "../features/shell/context";
 import { Button } from "../ui/button";
 import { SectionHeader } from "../ui/section";
@@ -7,12 +9,32 @@ import { AiMark, TickMeter } from "../features/ai/AiLayer";
 const LABELS = { energy: "Energia", valence: "Alegria", danceability: "Dançante", acousticness: "Acústica" };
 const fmt = (v) => v.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
-/** Resultado do questionário: traços e o perfil sonoro. */
+/** Resultado do questionário: palpite de idade, traços e o perfil sonoro. */
 export function ProfilePage() {
-  const { user, hint, navigate, onRedo } = useApp();
+  const { user, setUser, hint, navigate, onRedo } = useApp();
   const profile = user.profile;
+  const [ranges, setRanges] = useState([]);
+  const [correcting, setCorrecting] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    getOnboardingOptions().then((d) => setRanges(d.age_ranges)).catch(() => {});
+  }, []);
+
+  async function answerAge(rangeId) {
+    setSaving(true);
+    try {
+      const updated = await confirmAge(rangeId);
+      setUser((u) => ({ ...u, profile: updated }));
+      setCorrecting(false);
+    } finally {
+      setSaving(false);
+    }
+  }
 
   if (!profile) return null;
+  const guess = profile.age_guess;
+  const guessRange = ranges.find((r) => r.id === profile.age_range_guess);
 
   return (
     <div className="mx-auto grid grid-cols-[minmax(0,1fr)] max-w-5xl gap-12 px-4 py-8 sm:px-8 sm:py-12">
@@ -31,7 +53,47 @@ export function ProfilePage() {
         )}
       </header>
 
-      <section className="grid gap-6">
+      <section className="grid gap-6 lg:grid-cols-2">
+        <article className="grid content-start gap-4 rounded-lg bg-surface-1 p-6 shadow-1 ring-1 ring-border/70">
+          <h2 className="text-caption uppercase text-text-2">Idade</h2>
+          {profile.age_confirmed ? (
+            <>
+              <p className="font-display-tight text-stat font-heavy">{profile.age_confirmed}</p>
+              <p className="text-small text-text-2">Confirmado por você. Isso ajuda a IA a errar menos nos próximos palpites.</p>
+            </>
+          ) : guess ? (
+            <>
+              <p className="font-display-tight text-stat font-heavy tabular">
+                {guess.low}–{guess.high}
+                <span className="ml-2 font-sans text-body font-regular text-text-2">anos</span>
+              </p>
+              <p className="text-small text-text-2">
+                Palpite feito pelas {guess.based_on} {guess.based_on === 1 ? "música" : "músicas"} que marcaram sua
+                adolescência: as músicas que mais nos marcam costumam ser as que ouvimos por volta dos 16 anos.
+              </p>
+              {!correcting ? (
+                <div className="flex gap-2">
+                  <Button variant="primary" size="sm" disabled={saving || !guessRange} onClick={() => answerAge(profile.age_range_guess)}>
+                    Acertou
+                  </Button>
+                  <Button variant="ghost" size="sm" onClick={() => setCorrecting(true)}>
+                    Errou
+                  </Button>
+                </div>
+              ) : (
+                <AgePicker ranges={ranges} disabled={saving} onPick={answerAge} />
+              )}
+            </>
+          ) : (
+            <>
+              <p className="text-small text-text-2">
+                Você não marcou nenhuma música da adolescência, então a IA não arriscou um palpite. Quer contar?
+              </p>
+              <AgePicker ranges={ranges} disabled={saving} onPick={answerAge} />
+            </>
+          )}
+        </article>
+
         <article className="grid content-start gap-4 rounded-lg bg-surface-1 p-6 shadow-1 ring-1 ring-border/70">
           <h2 className="text-caption uppercase text-text-2">Traços</h2>
           <ul className="grid gap-4">
@@ -95,6 +157,18 @@ export function ProfilePage() {
           <RefreshCw aria-hidden="true" /> Refazer questionário
         </Button>
       </div>
+    </div>
+  );
+}
+
+function AgePicker({ ranges, disabled, onPick }) {
+  return (
+    <div className="flex flex-wrap gap-2">
+      {ranges.map((r) => (
+        <Button key={r.id} variant="outline" size="sm" disabled={disabled} onClick={() => onPick(r.id)}>
+          {r.label}
+        </Button>
+      ))}
     </div>
   );
 }

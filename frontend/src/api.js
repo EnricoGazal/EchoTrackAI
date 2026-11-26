@@ -149,5 +149,8 @@ export const deleteAccount = () => request("/me", { method: "DELETE" });
 export const getOnboardingOptions = (o) => cachedGet("/onboarding/options", o);
 export const getOnboardingArtists = (genres, o) =>
   request(`/onboarding/artists?genres=${encodeURIComponent(genres.join(","))}&limit=30`, o);
+export const getRelatedArtists = (artist, exclude = [], o) =>
+  request(`/onboarding/related?artist=${encodeURIComponent(artist)}&exclude=${encodeURIComponent(exclude.join("|"))}&limit=3`, o);
 export const sendOnboarding = (answers) => request("/onboarding", { method: "POST", body: answers });
+export const confirmAge = (range) => request("/me/age", { method: "POST", body: { range } });
 export const getForYou = (n = 12, o) => request(`/me/for-you?n=${n}`, o);

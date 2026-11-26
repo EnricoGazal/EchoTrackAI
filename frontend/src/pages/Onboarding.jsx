@@ -1,7 +1,7 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { Check, Search } from "lucide-react";
-import { getGenres, getOnboardingArtists, searchSongs, sendOnboarding } from "../api";
+import { getGenres, getOnboardingArtists, getOnboardingOptions, getRelatedArtists, searchSongs, sendOnboarding } from "../api";
 import { Button } from "../ui/button";
 import { Cover } from "../ui/cover";
 import { Input } from "../ui/input";
@@ -14,7 +14,8 @@ import { cn } from "../lib/utils";
 // Cada pergunta tem uma palavra em destaque: é o que a IA está tentando aprender.
 const STEPS = [
   { id: "genres", title: ["Quais ", "gêneros", " você curte?"], hint: "Escolha quantos quiser." },
-  { id: "artists", title: ["Escolha 3 ou mais ", "artistas", " que você curte."], hint: "Busque ou escolha abaixo. Eles viram pontos de partida para a IA entender o seu som." },
+  { id: "artists", title: ["Escolha 3 ou mais ", "artistas", " que você curte."], hint: "Ao escolher um, aparecem outros parecidos com ele. Eles viram pontos de partida para a IA entender o seu som." },
+  { id: "era", title: ["O que tocava quando você tinha ", "uns 15 anos", "?"], hint: "Marque as que lembram a sua adolescência. Com elas, a IA arrisca um palpite da sua idade. Se nenhuma, é só continuar." },
   { id: "songs", title: ["Quais ", "músicas", " você não para de ouvir?"], hint: "Busque e escolha quantas quiser. Se preferir, é só continuar." },
 ];
 
@@ -23,7 +24,8 @@ export function Onboarding({ name, onDone }) {
   const [step, setStep] = useState(0);
   const [genres, setGenres] = useState([]);
   const [artists, setArtists] = useState(null);
-  const [answers, setAnswers] = useState({ genres: [], artists: [], songs: [] });
+  const [eraSongs, setEraSongs] = useState(null); // músicas de cada época, para o palpite de idade
+  const [answers, setAnswers] = useState({ genres: [], artists: [], era_songs: [], songs: [] });
   const [pickedArtists, setPickedArtists] = useState([]); // artistas escolhidos (para mostrar mesmo fora da lista)
   const [pickedSongs, setPickedSongs] = useState([]); // músicas escolhidas
   const [query, setQuery] = useState("");
@@ -34,14 +36,26 @@ export function Onboarding({ name, onDone }) {
 
   useEffect(() => {
     getGenres().then((d) => setGenres(d.details)).catch(() => {});
+    getOnboardingOptions().then((d) => setEraSongs(d.era_songs)).catch(() => setEraSongs([]));
   }, []);
 
+  // Lista de artistas: só recarrega quando os gêneros mudam, para não perder
+  // os artistas que entraram como "parecidos". Os já escolhidos ficam no topo.
+  const artistsFor = useRef(null);
   useEffect(() => {
     if (STEPS[step].id !== "artists") return undefined;
+    const key = answers.genres.join(",");
+    if (artistsFor.current === key) return undefined;
     const controller = new AbortController();
     setArtists(null);
-    getOnboardingArtists(answers.genres, { signal: controller.signal }).then((d) => setArtists(d.artists)).catch(() => {});
+    getOnboardingArtists(answers.genres, { signal: controller.signal })
+      .then((d) => {
+        artistsFor.current = key;
+        setArtists([...pickedArtists, ...d.artists.filter((a) => !pickedArtists.some((p) => p.name === a.name))]);
+      })
+      .catch(() => {});
     return () => controller.abort();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [step, answers.genres]);
 
   const toggle = (field, value) =>
@@ -50,6 +64,24 @@ export function Onboarding({ name, onDone }) {
   const pickArtist = (a) => {
     toggle("artists", a.name);
     setPickedArtists((list) => (list.some((x) => x.name === a.name) ? list.filter((x) => x.name !== a.name) : [...list, a]));
+    if (answers.artists.includes(a.name)) return; // desmarcou
+
+    // Como no Spotify: o artista escolhido entra na lista (se veio da busca)
+    // e logo depois dele aparecem três artistas parecidos.
+    if (searching) setQuery("");
+    setArtists((list) => (list?.some((x) => x.name === a.name) ? list : [a, ...(list ?? [])]));
+    // Os parecidos que já estavam na lista mudam de lugar e vêm para perto dele.
+    getRelatedArtists(a.name, answers.artists)
+      .then((d) =>
+        setArtists((list) => {
+          if (!list || !list.some((x) => x.name === a.name)) return list;
+          const near = d.artists.map((x) => list.find((y) => y.name === x.name) ?? x);
+          const rest = list.filter((x) => !near.some((y) => y.name === x.name));
+          const at = rest.findIndex((x) => x.name === a.name);
+          return [...rest.slice(0, at + 1), ...near, ...rest.slice(at + 1)];
+        })
+      )
+      .catch(() => {});
   };
   const pickSong = (song) => {
     toggle("songs", song.track_id);
@@ -68,6 +100,7 @@ export function Onboarding({ name, onDone }) {
   const canGo =
     (current.id === "genres" && answers.genres.length > 0) ||
     (current.id === "artists" && answers.artists.length >= 3) ||
+    current.id === "era" ||
     current.id === "songs";
 
   async function next() {
@@ -91,7 +124,8 @@ export function Onboarding({ name, onDone }) {
         <div className="mx-auto flex h-18 max-w-5xl items-center gap-6 px-6 sm:px-10">
           <Logo withName={false} />
           <div
-            className="grid flex-1 grid-cols-3 gap-1.5"
+            className="grid flex-1 gap-1.5"
+            style={{ gridTemplateColumns: `repeat(${STEPS.length}, minmax(0, 1fr))` }}
             role="progressbar"
             aria-label="Progresso do questionário"
             aria-valuemin={1}
@@ -153,26 +187,23 @@ export function Onboarding({ name, onDone }) {
             {current.id === "artists" && (
               <div className="grid gap-8">
                 <SearchBox value={query} onChange={setQuery} placeholder="Busque um artista" />
-                {pickedArtists.length > 0 && (
-                  <div className="mx-auto flex max-w-3xl flex-wrap justify-center gap-2.5" aria-label="Artistas escolhidos">
-                    {pickedArtists.map((a) => (
-                      <Chip key={a.name} on onClick={() => pickArtist(a)}>
-                        {a.name}
-                      </Chip>
-                    ))}
-                  </div>
-                )}
                 {searching && found && !found.artists.length ? (
                   <p className="text-center text-body text-text-2">Nenhum artista encontrado para “{query.trim()}”.</p>
                 ) : (
               <ul className="grid grid-cols-3 gap-x-4 gap-y-6 sm:grid-cols-4 lg:grid-cols-6">
                 {((searching ? found?.artists : artists) ?? Array.from({ length: searching ? 3 : 12 }, () => null)).map((a, i) =>
                   a ? (
-                    <li key={a.name}>
+                    <motion.li
+                      key={a.name}
+                      layout={!reduce}
+                      initial={reduce ? false : { opacity: 0, scale: 0.6 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      transition={{ type: "spring", stiffness: 420, damping: 30 }}
+                    >
                       <Pick on={answers.artists.includes(a.name)} onClick={() => pickArtist(a)} round label={a.name}>
                         <Cover song={{ track_id: a.image_track_id }} className="w-full rounded-pill" />
                       </Pick>
-                    </li>
+                    </motion.li>
                   ) : (
                     <li key={i} className="grid gap-2">
                       <Skeleton className="aspect-square w-full rounded-pill" />
@@ -183,6 +214,25 @@ export function Onboarding({ name, onDone }) {
               </ul>
                 )}
               </div>
+            )}
+
+            {current.id === "era" && (
+              <ul className="grid grid-cols-2 gap-x-4 gap-y-6 sm:grid-cols-4 lg:grid-cols-6">
+                {(eraSongs ?? Array.from({ length: 12 }, () => null)).map((s, i) =>
+                  s ? (
+                    <li key={s.track_id}>
+                      <Pick on={answers.era_songs.includes(s.track_id)} onClick={() => toggle("era_songs", s.track_id)} label={cleanTitle(s.track_name)} sub={formatArtists(s.artists)}>
+                        <Cover song={s} className="w-full rounded-md" />
+                      </Pick>
+                    </li>
+                  ) : (
+                    <li key={i} className="grid gap-2">
+                      <Skeleton className="aspect-square w-full rounded-md" />
+                      <Skeleton className="mx-auto h-3 w-2/3" />
+                    </li>
+                  )
+                )}
+              </ul>
             )}
 
             {current.id === "songs" && (
