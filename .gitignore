@@ -1,8 +1,8 @@
 __pycache__/
 *.pyc
 
-# Dataset: só o dataset original vai para o Git; os CSVs de resultado são gerados
-data/*.csv
+# Dataset: só o dataset original vai para o Git (resultados ficam em outputs/)
+data/*
 !data/dataset.csv
 
 # Generated models

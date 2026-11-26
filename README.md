@@ -90,7 +90,7 @@ Sistemas-de-recomendacao/
 └── requirements.txt      dependências do Python
 ```
 
-`models/`, `reports/`, `outputs/` e os CSVs de resultado em `data/` são gerados pelos comandos e não vão para o Git.
+A pasta `data/` guarda só o dataset original. `models/`, `reports/` e `outputs/` são gerados pelos comandos e não vão para o Git.
 
 ---
 

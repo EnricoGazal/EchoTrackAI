@@ -1,3 +1,5 @@
+import os
+
 from data_loader import load_dataset
 from data_types import identify_column_types
 from preprocessing import clean_data
@@ -5,7 +7,12 @@ from features import build_features
 from recommender import recommend_songs, recommend_songs_mmr
 
 
+# Resultados gerados vão para outputs/; a pasta data/ guarda só o dataset original.
+OUTPUT_DIR = "outputs"
+
+
 def main():
+    os.makedirs(OUTPUT_DIR, exist_ok=True)
     df = load_dataset()
 
     print("Tipos das colunas do dataset original:")
@@ -39,7 +46,7 @@ def main():
     else:
         print(recommendations.to_string(index=False))
         recommendations.to_csv(
-            "data/recommendations_baseline.csv",
+            os.path.join(OUTPUT_DIR, "recommendations_baseline.csv"),
             index=False
         )
 
@@ -58,16 +65,16 @@ def main():
     else:
         print(recommendations_mmr.to_string(index=False))
         recommendations_mmr.to_csv(
-            "data/recommendations_mmr.csv",
+            os.path.join(OUTPUT_DIR, "recommendations_mmr.csv"),
             index=False
         )
 
     feature_matrix.to_csv(
-        "data/feature_matrix.csv",
+        os.path.join(OUTPUT_DIR, "feature_matrix.csv"),
         index=False
     )
 
-    print("\nArquivos salvos na pasta data.")
+    print(f"\nArquivos salvos na pasta {OUTPUT_DIR}.")
 
 
 if __name__ == "__main__":
