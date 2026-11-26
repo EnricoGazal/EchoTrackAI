@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence } from "motion/react";
 import { Toaster, toast } from "sonner";
-import { deleteAccount, getHealth, getMe, getRadio, getToken, prefetchRadio, setToken, startGuest } from "./api";
+import { deleteAccount, getHealth, getMe, getRadio, getToken, logout, prefetchRadio, setToken } from "./api";
 import * as spotify from "./spotify";
 import { useRouter } from "./lib/router";
 import { useRail } from "./lib/rail";
@@ -18,6 +18,7 @@ import { useLivePosition } from "./features/player/useLivePosition";
 import { NowPlaying } from "./features/now-playing/NowPlaying";
 import { listName, originFor } from "./features/ai/origin";
 import { Onboarding } from "./pages/Onboarding";
+import { AuthPage } from "./pages/AuthPage";
 import { HomePage } from "./pages/HomePage";
 import { DiscoverPage } from "./pages/DiscoverPage";
 import { SongPage } from "./pages/SongPage";
@@ -31,10 +32,15 @@ import { Button } from "./ui/button";
 import { Logo } from "./ui/logo";
 import { TooltipProvider } from "./ui/tooltip";
 
-// Fluxo de entrada: conta de visitante (sem login), questionário e, por fim, o app.
+// Contas antigas de visitante (criadas sem e-mail e senha) precisam criar uma conta.
+const isGuest = (user) => Boolean(user?.email?.endsWith("@echotrack.local"));
+
+// Fluxo de entrada: criar conta ou entrar, questionário e, por fim, o app.
 export default function App() {
-  const [stage, setStage] = useState("loading"); // loading | onboarding | app | offline
+  const [stage, setStage] = useState("loading"); // loading | auth | onboarding | app | offline
+  const [authMode, setAuthMode] = useState("signup"); // tela de entrada: criar conta ou entrar
   const [user, setUser] = useState(null);
+  const [intro, setIntro] = useState(shouldShowIntro); // abertura com o slogan, uma vez por visita
 
   async function loadUser() {
     setStage("loading");
@@ -45,10 +51,19 @@ export default function App() {
           me = await getMe();
         } catch (err) {
           if (err.kind === "offline") throw err;
-          setToken(null); // sessão inválida: começa uma nova conta de visitante
+          setToken(null); // sessão vencida: pede para entrar de novo
+          setAuthMode("login");
         }
       }
-      if (!me) me = await startGuest();
+      if (me && isGuest(me)) {
+        setToken(null);
+        me = null;
+        setAuthMode("signup");
+      }
+      if (!me) {
+        setStage("auth");
+        return;
+      }
       setUser(me);
       setStage(me.onboarded ? "app" : "onboarding");
     } catch {
@@ -70,14 +85,15 @@ export default function App() {
     />
   );
 
+  let content;
   if (stage === "loading")
-    return (
+    content = (
       <div className="grid min-h-dvh place-items-center">
         <Logo className="animate-pulse" />
       </div>
     );
-  if (stage === "offline")
-    return (
+  else if (stage === "offline")
+    content = (
       <div className="mx-auto grid min-h-dvh max-w-lg place-items-center px-4">
         <Notice
           tone="danger"
@@ -88,8 +104,21 @@ export default function App() {
         </Notice>
       </div>
     );
-  if (stage === "onboarding")
-    return (
+  else if (stage === "auth")
+    content = (
+      <>
+        {toaster}
+        <AuthPage
+          initialMode={authMode}
+          onAuth={(u) => {
+            setUser(u);
+            setStage(u.onboarded ? "app" : "onboarding");
+          }}
+        />
+      </>
+    );
+  else if (stage === "onboarding")
+    content = (
       <Onboarding
         name={user.name}
         onDone={(profile) => {
@@ -99,21 +128,29 @@ export default function App() {
         }}
       />
     );
+  else
+    content = (
+      <>
+        {toaster}
+        <MainApp
+          user={user}
+          setUser={setUser}
+          onRedo={() => setStage("onboarding")}
+          onSignedOut={(mode = "signup") => {
+            setToken(null);
+            setUser(null);
+            setAuthMode(mode);
+            window.history.replaceState({}, "", "/");
+            loadUser();
+          }}
+        />
+      </>
+    );
 
   return (
     <>
-      {toaster}
-      <MainApp
-        user={user}
-        setUser={setUser}
-        onRedo={() => setStage("onboarding")}
-        onSignedOut={() => {
-          setToken(null);
-          setUser(null);
-          window.history.replaceState({}, "", "/");
-          loadUser();
-        }}
-      />
+      {content}
+      <AnimatePresence>{intro && <Intro key="intro" onDone={() => setIntro(false)} />}</AnimatePresence>
     </>
   );
 }
@@ -121,7 +158,6 @@ export default function App() {
 function MainApp({ user, setUser, onRedo, onSignedOut }) {
   const { route, hint, navigate } = useRouter();
   const [railOpen, toggleRail] = useRail();
-  const [intro, setIntro] = useState(shouldShowIntro);
 
   // --- Saúde da API -------------------------------------------------------
   const [health, setHealth] = useState({ state: "checking" });
@@ -263,6 +299,16 @@ function MainApp({ user, setUser, onRedo, onSignedOut }) {
     onSignedOut();
   }
 
+  // Sair: encerra a sessão e volta para a tela de entrada.
+  async function signOut() {
+    try {
+      await logout();
+    } catch {
+      // mesmo sem resposta da API, a sessão some deste navegador
+    }
+    onSignedOut("login");
+  }
+
   const openSong = useCallback((song) => navigate({ name: "song", id: song.track_id }, { hint: { song } }), [navigate]);
   const openArtist = useCallback((name) => navigate({ name: "artist", artist: name }), [navigate]);
   const openGenre = useCallback((g) => navigate({ name: "genre", id: g.genre }, { hint: { label: g.label } }), [navigate]);
@@ -301,6 +347,7 @@ function MainApp({ user, setUser, onRedo, onSignedOut }) {
       onConnect={canConnect ? spotify.startLogin : null}
       onDisconnect={spotifyStatus === "ready" || spotifyStatus === "connecting" ? () => { spotify.disconnect(); setSpotifyStatus("off"); } : null}
       onDelete={() => setConfirmDelete(true)}
+      onLogout={signOut}
     />
   );
 
@@ -401,8 +448,6 @@ function MainApp({ user, setUser, onRedo, onSignedOut }) {
           confirmLabel="Apagar conta"
           onConfirm={removeAccount}
         />
-
-        <AnimatePresence>{intro && <Intro key="intro" onDone={() => setIntro(false)} />}</AnimatePresence>
       </TooltipProvider>
     </AppContext.Provider>
   );

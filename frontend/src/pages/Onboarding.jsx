@@ -11,7 +11,7 @@ import { Skeleton } from "../ui/skeleton";
 import { cleanTitle, formatArtists } from "../utils";
 import { cn } from "../lib/utils";
 
-// Cada pergunta tem uma palavra em itálico: é o que a IA está tentando aprender.
+// Cada pergunta tem uma palavra em destaque: é o que a IA está tentando aprender.
 const STEPS = [
   { id: "genres", title: ["Quais ", "gêneros", " você curte?"], hint: "Escolha quantos quiser." },
   { id: "artists", title: ["Escolha 3 ou mais ", "artistas", " que você curte."], hint: "Busque ou escolha abaixo. Eles viram pontos de partida para a IA entender o seu som." },
@@ -86,8 +86,8 @@ export function Onboarding({ name, onDone }) {
   }
 
   return (
-    <div className="theme-paper flex min-h-dvh flex-col">
-      <header className="sticky top-0 z-10 bg-(--glass-bg) backdrop-blur-(--glass-blur)">
+    <div className="flex min-h-dvh flex-col">
+      <header className="sticky top-0 z-10 border-b border-(--glass-ring) bg-(--glass-bg) backdrop-blur-(--glass-blur)">
         <div className="mx-auto flex h-18 max-w-5xl items-center gap-6 px-6 sm:px-10">
           <Logo withName={false} />
           <div
@@ -120,9 +120,9 @@ export function Onboarding({ name, onDone }) {
           >
             <div className="mx-auto grid max-w-3xl gap-4 text-center">
               <p className="text-small text-text-2">{step === 0 ? `Olá, ${name}. Vamos conhecer o seu gosto.` : current.hint}</p>
-              <h1 className="font-serif text-[clamp(2.5rem,1.8rem+3.4vw,4.25rem)] leading-[1.02] tracking-[-0.02em] text-balance text-text-1">
+              <h1 className="font-display-tight text-display font-heavy text-balance text-text-1">
                 {current.title[0]}
-                <em>{current.title[1]}</em>
+                <span className="text-brand">{current.title[1]}</span>
                 {current.title[2]}
               </h1>
               {step === 0 && <p className="text-body text-text-2">{current.hint}</p>}
@@ -251,7 +251,7 @@ export function Onboarding({ name, onDone }) {
         </AnimatePresence>
       </main>
 
-      <footer className="sticky bottom-0 bg-(--glass-bg) backdrop-blur-(--glass-blur)">
+      <footer className="sticky bottom-0 border-t border-(--glass-ring) bg-(--glass-bg) backdrop-blur-(--glass-blur)">
         <div className="mx-auto flex h-22 max-w-5xl items-center justify-between gap-4 px-6 sm:px-10">
           <span className="text-small text-text-2" aria-live="polite">
             {current.id === "artists" && answers.artists.length < 3
@@ -320,7 +320,7 @@ function SearchBox({ value, onChange, placeholder }) {
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
-        className="h-13 rounded-pill bg-surface-1 pl-13 shadow-none ring-border focus-visible:bg-bg"
+        className="h-13 rounded-pill bg-surface-1/70 pl-13 shadow-none ring-(--glass-ring) hover:ring-border focus-visible:bg-surface-2"
       />
     </label>
   );
@@ -333,7 +333,7 @@ function Chip({ on, children, ...props }) {
       aria-pressed={on}
       className={cn(
         "inline-flex h-12 items-center gap-2 rounded-pill px-6 text-body transition-[background-color,color,transform] duration-(--duration-base) ease-out active:scale-[0.97]",
-        on ? "bg-text-1 text-bg" : "bg-surface-1 text-text-1 ring-1 ring-border hover:bg-surface-2 hover:ring-border-strong"
+        on ? "bg-text-1 text-bg" : "bg-surface-1/70 text-text-1 ring-1 ring-(--glass-ring) hover:bg-surface-2 hover:ring-border"
       )}
       {...props}
     >

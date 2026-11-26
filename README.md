@@ -50,7 +50,7 @@ O sistema mede a **similaridade do cosseno** entre o vetor da música escolhida 
 - **Feito para você:** um questionário inicial monta o seu perfil musical e as recomendações saem dele
 - **Player do Spotify:** prévia de 30 segundos, ou a faixa inteira com Spotify Premium
 
-Não há tela de login: na primeira visita o site cria uma conta de visitante, guardada no navegador.
+Para usar o site é preciso criar uma conta (nome, e-mail e senha). O menu da conta, no pé da barra lateral, tem a opção **Sair**; para voltar, basta entrar com o mesmo e-mail e senha.
 
 ### 5. Avaliação
 

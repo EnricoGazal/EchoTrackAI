@@ -20,3 +20,6 @@ venv/
 
 # Banco de usuários (contas e respostas do questionário)
 instance/
+
+# Configuração local do editor
+.vscode/

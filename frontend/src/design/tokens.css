@@ -80,7 +80,6 @@
   /* Tipografia */
   --font-display: "Bricolage Grotesque Variable", ui-sans-serif, system-ui, sans-serif;
   --font-sans: "Geist Variable", ui-sans-serif, system-ui, sans-serif;
-  --font-serif: "Instrument Serif", ui-serif, Georgia, serif;
   --radius-xl: 28px;
 
   /* Escala (tamanho / altura de linha / tracking / peso) */
@@ -145,51 +144,6 @@
 }
 :root {
   --rail-offset: calc(var(--rail-w) + var(--rail-gap) * 2);
-}
-
-/*
- * Tema "papel": telas de entrada (login, cadastro e questionário).
- * Creme claro, tinta escura e serifa nos títulos — calmo e editorial.
- * Contraste sobre --bg: text-1 16,6:1 · text-2 7,8:1 · text-3 5,7:1 ·
- * ai 5,6:1 · danger 5,8:1 · creme sobre tinta 16,6:1 · border-strong 3,5:1
- */
-.theme-paper {
-  color-scheme: light;
-  --bg: oklch(0.985 0.02 100);
-  --surface-1: oklch(0.965 0.022 100);
-  --surface-2: oklch(0.94 0.024 100);
-  --surface-3: oklch(0.905 0.026 100);
-  --border: oklch(0.87 0.022 100);
-  --border-strong: oklch(0.62 0.02 100);
-  --overlay: oklch(0.22 0.012 100 / 0.4);
-  --text-1: oklch(0.22 0.012 100);
-  --text-2: oklch(0.43 0.014 100);
-  --text-3: oklch(0.5 0.014 100);
-  /* Ação principal vira "tinta" (botão escuro), como numa página impressa */
-  --brand: oklch(0.22 0.012 100);
-  --brand-hover: oklch(0.33 0.012 100);
-  --on-brand: oklch(0.985 0.02 100);
-  --ai: oklch(0.5 0.09 205);
-  --ai-dim: oklch(0.5 0.09 205 / 0.45);
-  --ai-surface: oklch(0.93 0.045 200);
-  --ai-border: oklch(0.5 0.09 205 / 0.35);
-  --on-ai: oklch(0.985 0.02 100);
-  --danger: oklch(0.52 0.18 28);
-  --focus: oklch(0.5 0.09 205);
-  --glass-bg: oklch(0.985 0.02 100 / 0.78);
-  --glass-ring: oklch(0.22 0.012 100 / 0.08);
-  --glass-highlight: oklch(1 0 0 / 0.6);
-  --glass-track: oklch(0.22 0.012 100 / 0.08);
-  --shadow-1: 0 1px 2px oklch(0.3 0.03 90 / 0.06);
-  --shadow-2: 0 6px 20px -8px oklch(0.3 0.03 90 / 0.18);
-  --shadow-3: 0 24px 60px -24px oklch(0.3 0.03 90 / 0.28);
-  /* Logo: disco em tinta, selo âmbar */
-  --logo-disc: oklch(0.22 0.012 100);
-  --logo-groove: oklch(0.42 0.012 100);
-  --logo-label: oklch(0.8 0.15 68);
-  --logo-hole: oklch(0.985 0.02 100);
-  background: var(--bg);
-  color: var(--text-1);
 }
 
 @media (prefers-reduced-motion: reduce) {

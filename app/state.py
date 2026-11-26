@@ -24,6 +24,7 @@ class AppState:
         self.search_artists = None
         self.artist_sets = None
         self.base_titles = None
+        self.search_artist_sets = None
         self.id_to_index = None
         self.genre_profiles = None
         self.artist_songs = None
@@ -63,6 +64,11 @@ class AppState:
         self.artist_sets = [
             frozenset(a.strip() for a in str(x).split(";") if a.strip())
             for x in self.df_clean["artists"]
+        ]
+
+        # Os mesmos nomes, normalizados: a busca reconhece o artista exato.
+        self.search_artist_sets = [
+            frozenset(normalize_text(a) for a in names) for names in self.artist_sets
         ]
 
         self.base_titles = (

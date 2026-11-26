@@ -258,11 +258,27 @@ def search(
         re.escape(query), regex=True, na=False
     )
 
-    # Ordena por popularidade ANTES de limitar, para que as faixas
-    # mais conhecidas apareçam primeiro.
+    # Ordem: título ou artista igual ao que foi digitado, título que começa
+    # com ele, título que o contém e, por fim, artista que o contém. Dentro
+    # de cada grupo, as mais populares primeiro. A mesma música em vários
+    # álbuns aparece uma vez só (a versão mais popular).
+    mask = (title_matches | artist_matches).to_numpy()
+    titles = state.base_titles[mask]
+    exact_artist = np.fromiter(
+        (query in state.search_artist_sets[i] for i in np.flatnonzero(mask)),
+        dtype=bool,
+        count=int(mask.sum()),
+    )
+    rank = np.select(
+        [(titles == query) | exact_artist, np.char.startswith(titles.astype(str), query), title_matches.to_numpy()[mask]],
+        [0, 1, 2],
+        default=3,
+    )
     results = (
-        df[title_matches | artist_matches]
-        .sort_values("popularity", ascending=False)
+        df[mask]
+        .assign(_song=titles + "|" + state.search_artists[mask].to_numpy(), _rank=rank)
+        .sort_values(["_rank", "popularity"], ascending=[True, False])
+        .drop_duplicates(subset="_song")
         .head(limit)
     )
 

@@ -69,7 +69,7 @@ componente usa cor, fonte ou espaçamento fora deles.
 
 ```text
 frontend/src/
-├── main.jsx, App.jsx           # entrada, questionário e o app (rotas, player, busca)
+├── main.jsx, App.jsx           # entrada (conta), questionário e o app (rotas, player, busca)
 ├── api.js                      # chamadas à API, com cache das respostas do modelo
 ├── spotify.js                  # login no Spotify e Web Playback SDK
 ├── design/                     # tokens e tema do Tailwind
@@ -83,7 +83,7 @@ frontend/src/
 │   ├── now-playing/            # tela cheia: forma de onda, tempo, capa ao fundo
 │   └── shell/                  # menu lateral, navegação no celular, busca ⌘K
 └── pages/                      # Início, Descobrir (Ponte), Playlist, Gênero, Artista,
-                                # Perfil, Biblioteca e Questionário
+                                # Perfil, Biblioteca, Entrar/Criar conta e Questionário
 ```
 
 ## Decisões que reduzem a espera

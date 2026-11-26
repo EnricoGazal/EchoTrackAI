@@ -1,9 +1,9 @@
-import { AudioLines, RefreshCw, Trash2, UserRound } from "lucide-react";
+import { AudioLines, LogOut, RefreshCw, Trash2, UserRound } from "lucide-react";
 import { Avatar } from "../../ui/avatar";
 import { Menu, MenuContent, MenuItem, MenuLabel, MenuSeparator, MenuTrigger } from "../../ui/dropdown";
 import { cn } from "../../lib/utils";
 
-export function UserMenu({ name, spotify, onProfile, onRedo, onConnect, onDisconnect, onDelete, compact, collapsed = false, side = "top", align = "start" }) {
+export function UserMenu({ name, spotify, onProfile, onRedo, onConnect, onDisconnect, onDelete, onLogout, compact, collapsed = false, side = "top", align = "start" }) {
   return (
     <Menu>
       <MenuTrigger
@@ -44,6 +44,9 @@ export function UserMenu({ name, spotify, onProfile, onRedo, onConnect, onDiscon
         <MenuSeparator />
         <MenuItem onSelect={onDelete} tone="danger">
           <Trash2 /> Apagar minha conta
+        </MenuItem>
+        <MenuItem onSelect={onLogout}>
+          <LogOut /> Sair
         </MenuItem>
       </MenuContent>
     </Menu>

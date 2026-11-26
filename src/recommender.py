@@ -395,6 +395,13 @@ def base_title(text):
 # evita normalizar as 89 mil músicas a cada pedido. O modelo é o mesmo.
 
 
+def _quiet_matmul():
+    """No macOS, o NumPy com o Accelerate da Apple às vezes avisa "divide by
+    zero/overflow in matmul" mesmo com vetores normais (já normalizados e
+    finitos). O resultado sai certo; aqui só calamos esse aviso falso."""
+    return np.errstate(divide="ignore", over="ignore", invalid="ignore")
+
+
 def normalize_rows(X):
     """Normaliza cada linha para norma 1 (float32, para o produto ficar rápido)."""
     X = np.asarray(X, dtype=np.float32)
@@ -412,7 +419,8 @@ def mmr_select(Xn, candidates, relevance, n, lam):
     diferença em relação aos já escolhidos (λ = peso da relevância)."""
     if len(candidates) == 0:
         return np.array([], dtype=int)
-    pair = Xn[candidates] @ Xn[candidates].T
+    with _quiet_matmul():
+        pair = Xn[candidates] @ Xn[candidates].T
     chosen = [int(np.argmax(relevance))]
     max_sim = pair[chosen[0]].copy()
     available = np.ones(len(candidates), dtype=bool)
@@ -446,7 +454,8 @@ def fast_recommend(
     obscurity > 0 ativa o modo "fora da bolha": dentro das músicas de som
     mais próximo, as menos populares sobem no ranking.
     """
-    sims = Xn @ _unit(vector)
+    with _quiet_matmul():
+        sims = Xn @ _unit(vector)
 
     # Folga de candidatos para compensar versões repetidas descartadas.
     wide = pool_size * (12 if obscurity > 0 else 3)
