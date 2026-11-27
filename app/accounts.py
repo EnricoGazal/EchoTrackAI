@@ -24,7 +24,7 @@ from typing import List, Optional
 import numpy as np
 import pandas as pd
 from fastapi import APIRouter, Depends, Header, HTTPException, Query
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from app.state import state
 from app.router import to_song_out, to_recommendations, artist_out
@@ -406,20 +406,30 @@ def public_profile(profile):
 
 
 class AgeIn(BaseModel):
-    range: str
+    # A pessoa confirma o palpite (faixa) ou digita a própria idade.
+    range: Optional[str] = None
+    age: Optional[int] = Field(None, ge=10, le=100)
 
 
 @router.post("/me/age")
 def confirm_age(body: AgeIn, user=Depends(current_user)):
     """Usuário confirma ou corrige o palpite de idade; isso calibra os próximos."""
-    if body.range not in AGE_RANGES_BY_ID or not user["profile"]:
-        raise HTTPException(status_code=422, detail="Faixa de idade inválida.")
+    if not user["profile"]:
+        raise HTTPException(status_code=422, detail="Responda o questionário primeiro.")
+    if body.age is not None:
+        chosen = range_for_age(body.age)
+        label = f"{body.age} anos"
+    elif body.range in AGE_RANGES_BY_ID:
+        chosen = body.range
+        label = AGE_RANGES_BY_ID[body.range]["label"]
+    else:
+        raise HTTPException(status_code=422, detail="Informe uma idade entre 10 e 100 anos.")
     profile = json.loads(user["profile"])
-    profile["age_confirmed"] = AGE_RANGES_BY_ID[body.range]["label"]
+    profile["age_confirmed"] = label
     conn = db()
     conn.execute(
         "UPDATE users SET confirmed_range = ?, profile = ? WHERE id = ?",
-        (body.range, json.dumps(profile), user["id"]),
+        (chosen, json.dumps(profile), user["id"]),
     )
     conn.commit()
     conn.close()

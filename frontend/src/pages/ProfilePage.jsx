@@ -1,8 +1,9 @@
-import { useEffect, useState } from "react";
-import { ArrowRight, RefreshCw } from "lucide-react";
-import { confirmAge, getOnboardingOptions } from "../api";
+import { useState } from "react";
+import { ArrowRight, Check, RefreshCw } from "lucide-react";
+import { confirmAge } from "../api";
 import { useApp } from "../features/shell/context";
 import { Button } from "../ui/button";
+import { Input } from "../ui/input";
 import { SectionHeader } from "../ui/section";
 import { AiMark, TickMeter } from "../features/ai/AiLayer";
 
@@ -13,18 +14,14 @@ const fmt = (v) => v.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximum
 export function ProfilePage() {
   const { user, setUser, hint, navigate, onRedo } = useApp();
   const profile = user.profile;
-  const [ranges, setRanges] = useState([]);
   const [correcting, setCorrecting] = useState(false);
   const [saving, setSaving] = useState(false);
 
-  useEffect(() => {
-    getOnboardingOptions().then((d) => setRanges(d.age_ranges)).catch(() => {});
-  }, []);
-
-  async function answerAge(rangeId) {
+  // answer: { range } quando o palpite acertou, { age } quando a pessoa digitou.
+  async function answerAge(answer) {
     setSaving(true);
     try {
-      const updated = await confirmAge(rangeId);
+      const updated = await confirmAge(answer);
       setUser((u) => ({ ...u, profile: updated }));
       setCorrecting(false);
     } finally {
@@ -34,7 +31,6 @@ export function ProfilePage() {
 
   if (!profile) return null;
   const guess = profile.age_guess;
-  const guessRange = ranges.find((r) => r.id === profile.age_range_guess);
 
   return (
     <div className="mx-auto grid grid-cols-[minmax(0,1fr)] max-w-5xl gap-12 px-4 py-8 sm:px-8 sm:py-12">
@@ -56,12 +52,18 @@ export function ProfilePage() {
       <section className="grid gap-6 lg:grid-cols-2">
         <article className="grid content-start gap-4 rounded-lg bg-surface-1 p-6 shadow-1 ring-1 ring-border/70">
           <h2 className="text-caption uppercase text-text-2">Idade</h2>
-          {profile.age_confirmed ? (
+          {profile.age_confirmed && !correcting ? (
             <>
               <p className="font-display-tight text-stat font-heavy">{profile.age_confirmed}</p>
-              <p className="text-small text-text-2">Confirmado por você. Isso ajuda a IA a errar menos nos próximos palpites.</p>
+              <p className="flex items-center gap-1.5 text-small text-text-2">
+                <Check className="size-4 text-brand" aria-hidden="true" />
+                Confirmado por você. Isso ajuda a IA a errar menos nos próximos palpites.
+              </p>
+              <Button variant="ghost" size="sm" className="-ml-3 w-fit" onClick={() => setCorrecting(true)}>
+                Alterar idade
+              </Button>
             </>
-          ) : guess ? (
+          ) : guess && !correcting ? (
             <>
               <p className="font-display-tight text-stat font-heavy tabular">
                 {guess.low}–{guess.high}
@@ -71,25 +73,28 @@ export function ProfilePage() {
                 Palpite feito pelas {guess.based_on} {guess.based_on === 1 ? "música" : "músicas"} que marcaram sua
                 adolescência: as músicas que mais nos marcam costumam ser as que ouvimos por volta dos 16 anos.
               </p>
-              {!correcting ? (
-                <div className="flex gap-2">
-                  <Button variant="primary" size="sm" disabled={saving || !guessRange} onClick={() => answerAge(profile.age_range_guess)}>
-                    Acertou
-                  </Button>
-                  <Button variant="ghost" size="sm" onClick={() => setCorrecting(true)}>
-                    Errou
-                  </Button>
-                </div>
-              ) : (
-                <AgePicker ranges={ranges} disabled={saving} onPick={answerAge} />
-              )}
+              <p className="text-small font-medium text-text-1">A IA acertou?</p>
+              <div className="flex gap-2">
+                <Button variant="primary" size="sm" disabled={saving} onClick={() => answerAge({ range: profile.age_range_guess })}>
+                  Acertou
+                </Button>
+                <Button variant="outline" size="sm" disabled={saving} onClick={() => setCorrecting(true)}>
+                  Errou
+                </Button>
+              </div>
             </>
           ) : (
             <>
               <p className="text-small text-text-2">
-                Você não marcou nenhuma música da adolescência, então a IA não arriscou um palpite. Quer contar?
+                {correcting
+                  ? "Quantos anos você tem? A IA usa a sua resposta para errar menos nos próximos palpites."
+                  : "Você não marcou nenhuma música da adolescência, então a IA não arriscou um palpite. Quantos anos você tem?"}
               </p>
-              <AgePicker ranges={ranges} disabled={saving} onPick={answerAge} />
+              <AgeInput
+                saving={saving}
+                onSave={(age) => answerAge({ age })}
+                onCancel={correcting ? () => setCorrecting(false) : null}
+              />
             </>
           )}
         </article>
@@ -161,14 +166,53 @@ export function ProfilePage() {
   );
 }
 
-function AgePicker({ ranges, disabled, onPick }) {
+/** Campo para a pessoa digitar a própria idade (10 a 100 anos). */
+function AgeInput({ saving, onSave, onCancel }) {
+  const [value, setValue] = useState("");
+  const [error, setError] = useState("");
+
+  function submit(e) {
+    e.preventDefault();
+    const age = Number(value);
+    if (!Number.isInteger(age) || age < 10 || age > 100) {
+      setError("Digite uma idade entre 10 e 100 anos.");
+      return;
+    }
+    setError("");
+    onSave(age);
+  }
+
   return (
-    <div className="flex flex-wrap gap-2">
-      {ranges.map((r) => (
-        <Button key={r.id} variant="outline" size="sm" disabled={disabled} onClick={() => onPick(r.id)}>
-          {r.label}
+    <form className="grid gap-2" onSubmit={submit} noValidate>
+      <div className="flex flex-wrap items-center gap-2">
+        <label className="relative">
+          <span className="sr-only">Sua idade</span>
+          <Input
+            type="number"
+            inputMode="numeric"
+            min={10}
+            max={100}
+            autoFocus
+            value={value}
+            onChange={(e) => setValue(e.target.value.replace(/\D/g, "").slice(0, 3))}
+            placeholder="20"
+            aria-invalid={Boolean(error)}
+            className="h-10 w-36 rounded-pill bg-surface-2/70 pr-14 pl-5 tabular shadow-none ring-(--glass-ring) [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+          />
+          <span aria-hidden="true" className="pointer-events-none absolute top-1/2 right-5 -translate-y-1/2 text-small text-text-3">
+            anos
+          </span>
+        </label>
+        <Button type="submit" variant="primary" size="sm" disabled={saving || !value}>
+          {saving ? "Salvando…" : "Confirmar"}
         </Button>
-      ))}
-    </div>
+        {onCancel && (
+          <Button type="button" variant="ghost" size="sm" onClick={onCancel}>
+            Cancelar
+          </Button>
+        )}
+      </div>
+      {error && <p className="pl-5 text-small text-danger">{error}</p>}
+    </form>
   );
 }

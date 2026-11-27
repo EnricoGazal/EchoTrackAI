@@ -152,5 +152,5 @@ export const getOnboardingArtists = (genres, o) =>
 export const getRelatedArtists = (artist, exclude = [], o) =>
   request(`/onboarding/related?artist=${encodeURIComponent(artist)}&exclude=${encodeURIComponent(exclude.join("|"))}&limit=3`, o);
 export const sendOnboarding = (answers) => request("/onboarding", { method: "POST", body: answers });
-export const confirmAge = (range) => request("/me/age", { method: "POST", body: { range } });
+export const confirmAge = (answer) => request("/me/age", { method: "POST", body: answer });
 export const getForYou = (n = 12, o) => request(`/me/for-you?n=${n}`, o);
