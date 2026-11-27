@@ -71,7 +71,7 @@ export function AuthPage({ onAuth, initialMode = "signup" }) {
               {isSignup ? "Crie sua conta" : "Que bom te ver de novo"}
               <span className="text-brand">.</span>
             </h1>
-            {isSignup && <p className="text-body text-text-2">Depois, quatro perguntas rápidas ensinam o seu gosto para a IA.</p>}
+            {isSignup && <p className="text-body text-text-2">Depois, três perguntas rápidas ensinam o seu gosto para a IA.</p>}
           </div>
 
           <div className="grid gap-5 rounded-xl bg-(--rail-bg) p-6 shadow-3 ring-1 ring-(--rail-ring) backdrop-blur-(--rail-blur)">

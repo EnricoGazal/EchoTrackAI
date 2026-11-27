@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { Check, Search } from "lucide-react";
-import { getGenres, getOnboardingArtists, getOnboardingOptions, getRelatedArtists, searchSongs, sendOnboarding } from "../api";
+import { getGenres, getOnboardingArtists, getRelatedArtists, searchSongs, sendOnboarding } from "../api";
 import { Button } from "../ui/button";
 import { Cover } from "../ui/cover";
 import { Input } from "../ui/input";
@@ -15,7 +15,6 @@ import { cn } from "../lib/utils";
 const STEPS = [
   { id: "genres", title: ["Quais ", "gêneros", " você curte?"], hint: "Escolha quantos quiser." },
   { id: "artists", title: ["Escolha 3 ou mais ", "artistas", " que você curte."], hint: "Ao escolher um, aparecem outros parecidos com ele. Eles viram pontos de partida para a IA entender o seu som." },
-  { id: "era", title: ["O que tocava quando você tinha ", "uns 15 anos", "?"], hint: "Marque as que lembram a sua adolescência. Com elas, a IA arrisca um palpite da sua idade. Se nenhuma, é só continuar." },
   { id: "songs", title: ["Quais ", "músicas", " você não para de ouvir?"], hint: "Busque e escolha quantas quiser. Se preferir, é só continuar." },
 ];
 
@@ -24,8 +23,7 @@ export function Onboarding({ name, onDone }) {
   const [step, setStep] = useState(0);
   const [genres, setGenres] = useState([]);
   const [artists, setArtists] = useState(null);
-  const [eraSongs, setEraSongs] = useState(null); // músicas de cada época, para o palpite de idade
-  const [answers, setAnswers] = useState({ genres: [], artists: [], era_songs: [], songs: [] });
+  const [answers, setAnswers] = useState({ genres: [], artists: [], songs: [] });
   const [pickedArtists, setPickedArtists] = useState([]); // artistas escolhidos (para mostrar mesmo fora da lista)
   const [pickedSongs, setPickedSongs] = useState([]); // músicas escolhidas
   const [query, setQuery] = useState("");
@@ -36,7 +34,6 @@ export function Onboarding({ name, onDone }) {
 
   useEffect(() => {
     getGenres().then((d) => setGenres(d.details)).catch(() => {});
-    getOnboardingOptions().then((d) => setEraSongs(d.era_songs)).catch(() => setEraSongs([]));
   }, []);
 
   // Lista de artistas: só recarrega quando os gêneros mudam, para não perder
@@ -100,7 +97,6 @@ export function Onboarding({ name, onDone }) {
   const canGo =
     (current.id === "genres" && answers.genres.length > 0) ||
     (current.id === "artists" && answers.artists.length >= 3) ||
-    current.id === "era" ||
     current.id === "songs";
 
   async function next() {
@@ -214,25 +210,6 @@ export function Onboarding({ name, onDone }) {
               </ul>
                 )}
               </div>
-            )}
-
-            {current.id === "era" && (
-              <ul className="grid grid-cols-2 gap-x-4 gap-y-6 sm:grid-cols-4 lg:grid-cols-6">
-                {(eraSongs ?? Array.from({ length: 12 }, () => null)).map((s, i) =>
-                  s ? (
-                    <li key={s.track_id}>
-                      <Pick on={answers.era_songs.includes(s.track_id)} onClick={() => toggle("era_songs", s.track_id)} label={cleanTitle(s.track_name)} sub={formatArtists(s.artists)}>
-                        <Cover song={s} className="w-full rounded-md" />
-                      </Pick>
-                    </li>
-                  ) : (
-                    <li key={i} className="grid gap-2">
-                      <Skeleton className="aspect-square w-full rounded-md" />
-                      <Skeleton className="mx-auto h-3 w-2/3" />
-                    </li>
-                  )
-                )}
-              </ul>
             )}
 
             {current.id === "songs" && (

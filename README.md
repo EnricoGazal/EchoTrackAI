@@ -47,7 +47,7 @@ O sistema mede a **similaridade do cosseno** entre o vetor da música escolhida 
 - **Rádio dirigível:** controles para puxar a playlist para mais ou menos energia, acústica e alegria, e para mais semelhança ou mais variedade
 - **Ponte entre duas músicas:** uma playlist que sai de uma música e chega em outra
 - **Fora da bolha:** dá preferência às músicas menos populares entre as de som parecido
-- **Feito para você:** um questionário inicial monta o seu perfil musical e as recomendações saem dele. Ao escolher um artista, aparecem logo ao lado outros de som parecido. Pelas músicas que marcaram a adolescência da pessoa, a IA também arrisca um palpite da idade, que ela pode confirmar ou corrigir
+- **Feito para você:** um questionário inicial monta o seu perfil musical e as recomendações saem dele. Ao escolher um artista, aparecem logo ao lado outros de som parecido. No perfil, a pessoa também pode informar a idade.
 - **Player do Spotify:** prévia de 30 segundos, ou a faixa inteira com Spotify Premium
 
 Para usar o site é preciso criar uma conta (nome, e-mail e senha). O menu da conta, no pé da barra lateral, tem a opção **Sair**; para voltar, basta entrar com o mesmo e-mail e senha.
