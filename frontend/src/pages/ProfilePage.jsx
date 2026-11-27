@@ -88,7 +88,7 @@ export function ProfilePage() {
               <p className="text-small text-text-2">
                 {correcting
                   ? "Quantos anos você tem? A IA usa a sua resposta para errar menos nos próximos palpites."
-                  : "Quantos anos você tem?"}
+                  : "Você não marcou nenhuma música da adolescência, então a IA não arriscou um palpite. Quantos anos você tem?"}
               </p>
               <AgeInput
                 saving={saving}
